@@ -147,10 +147,10 @@ function AvailabilityTeaser() {
               </div>
               <p className="text-sm text-muted-foreground">Open slots for quick booking</p>
             </div>
-            <Link href="/calendars">
+            <Link href="/book">
               <Button variant="outline" size="sm" className="gap-1.5" data-testid="button-view-calendar">
                 <Clock className="w-3.5 h-3.5" />
-                Full Calendar
+                Book Now
               </Button>
             </Link>
           </div>

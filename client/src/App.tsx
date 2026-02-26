@@ -8,7 +8,6 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import Home from "@/pages/Home";
 import About from "@/pages/About";
-import Calendars from "@/pages/Calendars";
 import Book from "@/pages/Book";
 import PetCalendarCreate from "@/pages/pet-calendar/Create";
 import PetCalendarView from "@/pages/pet-calendar/View";
@@ -30,7 +29,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/about" component={About} />
-        <Route path="/calendars" component={Calendars} />
+        <Route path="/calendars" component={PetCalendarCreate} />
         <Route path="/book" component={Book} />
         <Route path="/pet-calendar/create" component={PetCalendarCreate} />
         <Route path="/pet-calendar/success" component={PetCalendarSuccess} />

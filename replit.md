@@ -89,8 +89,8 @@ belly-scrubs/
 ## Pages & Routes
 1. **Home** (`/`) - Hero, availability teaser, services, testimonials, gallery, location, FAQ, CTA
 2. **About** (`/about`) - Story, values, team, facility, policies & FAQ
-3. **Calendars** (`/calendars`) - Interactive calendar with mock/live toggle, time slot browser, pet calendar CTA
-4. **Book** (`/book`) - 5-step booking flow: Service > Add-ons > Date/Time > Info > Confirm
+3. **Calendars** (`/calendars`) - Pet calendar generator (same as `/pet-calendar/create`)
+4. **Book** (`/book`) - 5-step booking flow: Service > Add-ons > Date/Time > Info > Confirm (includes booking calendar in step 3)
 5. **Pet Calendar Create** (`/pet-calendar/create`) - Upload pet photo, select type, create AI calendar. Stays on page with progress animation while AI generates all 12 images, then redirects to View once complete.
 6. **Pet Calendar View** (`/pet-calendar/:id`) - Calendar layout with AI photo on top, calendar grid on bottom for each month. Paginated (Jan-Jun / Jul-Dec). Purchase via Stripe to unlock high-res images.
 7. **Pet Calendar Success** (`/pet-calendar/success`) - Checkout success confirmation
