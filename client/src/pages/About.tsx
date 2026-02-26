@@ -10,6 +10,12 @@ import {
 import { SoapDivider } from "@/components/layout/SoapDivider";
 import { teamMembers, values, faqs, policies } from "@/data/siteData";
 import teaganPhoto from "@assets/image_1772080507657.png";
+import serenaPhoto from "@assets/image_1772080571987.png";
+
+const teamPhotos: Record<string, string> = {
+  Teagan: teaganPhoto,
+  Serena: serenaPhoto,
+};
 import {
   Heart,
   Shield,
@@ -159,24 +165,22 @@ function TeamSection() {
           whileInView="visible"
           viewport={{ once: true }}
           variants={stagger}
-          className="max-w-2xl mx-auto"
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto"
         >
           {teamMembers.map((member) => (
             <motion.div key={member.name} variants={fadeUp} transition={{ duration: 0.4 }}>
-              <Card className="overflow-hidden hover-elevate" data-testid={`card-team-${member.initials}`}>
-                <div className="flex flex-col sm:flex-row">
-                  <div className="sm:w-64 flex-shrink-0">
-                    <img
-                      src={teaganPhoto}
-                      alt={`${member.name} with her dogs`}
-                      className="w-full h-64 sm:h-full object-cover object-top"
-                    />
-                  </div>
-                  <div className="p-6 flex flex-col justify-center">
-                    <h3 className="font-semibold text-xl text-foreground mb-1">{member.name}</h3>
-                    <p className="text-sm text-primary font-medium mb-4">{member.role}</p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{member.bio}</p>
-                  </div>
+              <Card className="overflow-hidden h-full hover-elevate" data-testid={`card-team-${member.initials}`}>
+                {teamPhotos[member.name] && (
+                  <img
+                    src={teamPhotos[member.name]}
+                    alt={`${member.name} with her pets`}
+                    className="w-full h-64 object-cover object-top"
+                  />
+                )}
+                <div className="p-6">
+                  <h3 className="font-semibold text-xl text-foreground mb-1">{member.name}</h3>
+                  <p className="text-sm text-primary font-medium mb-4">{member.role}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{member.bio}</p>
                 </div>
               </Card>
             </motion.div>

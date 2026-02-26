@@ -160,6 +160,13 @@ export const teamMembers = [
     initials: "T",
     photo: true,
   },
+  {
+    name: "Serena",
+    role: "Dog Groomer",
+    bio: "Serena discovered her love for grooming while studying at Carver Career Center and went on to volunteer at local animal shelters before spending 4 years pampering pups at PetSmart. At home, she's surrounded by her own little zoo — 2 dogs, 4 cats, 3 snakes, 2 geckos, and a bearded dragon. Serena treats every pup like her own, guaranteeing the best spa day experience every time.",
+    initials: "S",
+    photo: true,
+  },
 ];
 
 export const businessInfo = {
