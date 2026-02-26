@@ -95,11 +95,20 @@ belly-scrubs/
 6. **Pet Calendar View** (`/pet-calendar/:id`) - Calendar layout with AI photo on top, calendar grid on bottom for each month. Paginated (Jan-Jun / Jul-Dec). Purchase via Stripe to unlock high-res images.
 7. **Pet Calendar Success** (`/pet-calendar/success`) - Checkout success confirmation
 
+## Pricing Structure
+- **Basic Grooming**: Size-based (Small $25-$35, Medium $40-$50, Large $55-$65, XL $70-$80) with short/long hair variants
+- **Deluxe Grooming**: Size-based (Small $50-$60, Medium $65-$75, Large $80-$90, XL $95-$105) with short/long hair variants
+- **Cat Services**: Bath $30-$60, Groom $70-$100, Nail Trim $12
+- **Self-Service Dog Wash**: $12 (24/7)
+- **Add-ons**: Nail Trim & Buff $15, Anal Gland $12, Sanitary Trim $12, Teeth Brushing $5, De-shed $20, De-matt $20-$50, De-Skunk $25, Flea & Tick $20
+- **Hours**: Mon-Fri 9AM-5PM, Sat 10AM-6PM, Sun Closed
+
 ## Key Features
 - **SoapDivider**: Signature wavy SVG divider with bubble elements
 - **Floating Navbar**: Frosted glass effect with quick actions
 - **Calendar Provider Pattern**: Interface supporting mock and live data sources
 - **ICS Generation**: Client-side calendar file download after booking
+- **Size-Based Pricing**: Booking wizard step 1 includes pet size (Small/Medium/Large/XL) and hair type (Short/Long) picker for grooming services
 - **Booking API**: POST /api/bookings with Zod validation
 - **Pet Calendar Creator**: AI-generated holiday-themed pet images using OpenAI gpt-image-1, with calendar layout (photo + month grid)
 - **Stripe Integration**: Payment processing for pet calendar purchases ($29.99) — NOT YET ACTIVATED. To enable, connect Stripe via the Replit Stripe connector integration. The app runs without it; calendar creation and AI generation work, but purchasing is disabled.

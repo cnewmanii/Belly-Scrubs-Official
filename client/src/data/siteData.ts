@@ -1,36 +1,66 @@
+export interface SizeOption {
+  size: string;
+  weight: string;
+  shortHairPrice: number;
+  longHairPrice: number;
+}
+
 export const services = [
   {
-    id: "full-grooming",
-    name: "Full Grooming",
-    description: "Complete professional grooming for dogs and cats including bath, haircut, nail trim, ear cleaning, and finishing touches. Award-winning service!",
-    price: 75,
+    id: "basic-grooming",
+    name: "Basic Grooming Package",
+    description: "Includes shampoo, condition, blueberry facial, ear clean, brush, blow dry, doggy cologne, and a bow or bandana.",
+    price: 25,
+    duration: 60,
+    icon: "Droplets" as const,
+    popular: true,
+    sizeOptions: [
+      { size: "Small", weight: "Up to 25 lbs", shortHairPrice: 25, longHairPrice: 35 },
+      { size: "Medium", weight: "26-55 lbs", shortHairPrice: 40, longHairPrice: 50 },
+      { size: "Large", weight: "56-95 lbs", shortHairPrice: 55, longHairPrice: 65 },
+      { size: "XL", weight: "Over 95 lbs", shortHairPrice: 70, longHairPrice: 80 },
+    ] as SizeOption[],
+  },
+  {
+    id: "deluxe-grooming",
+    name: "Deluxe Grooming Package",
+    description: "The full treatment: shampoo, condition, blueberry facial, brush, blow dry, ear clean, cut, style, sanitary trim, teeth brushing, nail trim with buff, doggy cologne, and a bow or bandana.",
+    price: 50,
     duration: 90,
     icon: "Scissors" as const,
     popular: true,
+    sizeOptions: [
+      { size: "Small", weight: "Up to 25 lbs", shortHairPrice: 50, longHairPrice: 60 },
+      { size: "Medium", weight: "26-55 lbs", shortHairPrice: 65, longHairPrice: 75 },
+      { size: "Large", weight: "56-95 lbs", shortHairPrice: 80, longHairPrice: 90 },
+      { size: "XL", weight: "Over 95 lbs", shortHairPrice: 95, longHairPrice: 105 },
+    ] as SizeOption[],
   },
   {
-    id: "bath-and-tidy",
-    name: "Bath & Tidy",
-    description: "Thorough professional bath, blow dry, brush out, nail trim, and ear cleaning. Perfect for pups between full grooms.",
-    price: 45,
-    duration: 60,
+    id: "cat-bath",
+    name: "Cat Bath",
+    description: "Professional bathing service for cats. Price varies based on coat condition and temperament.",
+    price: 30,
+    priceRange: "$30 - $60",
+    duration: 45,
     icon: "Droplets" as const,
     popular: false,
   },
   {
-    id: "deshedding",
-    name: "Deshedding Treatment",
-    description: "Specialized deshedding bath and treatment to reduce loose fur and keep your pup comfortable all season long.",
-    price: 55,
+    id: "cat-groom",
+    name: "Cat Groom",
+    description: "Full professional grooming for cats including bath, trim, and styling.",
+    price: 70,
+    priceRange: "$70 - $100",
     duration: 75,
-    icon: "Wind" as const,
+    icon: "Scissors" as const,
     popular: false,
   },
   {
-    id: "nail-trim",
-    name: "Walk-In Nail Trim",
-    description: "Quick and gentle nail trimming for dogs and cats. Walk-ins welcome Monday and Wednesday through Saturday!",
-    price: 15,
+    id: "cat-nail-trim",
+    name: "Cat Nail Trim",
+    description: "Quick and gentle nail trimming for cats.",
+    price: 12,
     duration: 15,
     icon: "Sparkles" as const,
     popular: false,
@@ -39,7 +69,7 @@ export const services = [
     id: "self-wash",
     name: "Self-Service Dog Wash",
     description: "Available 24/7, 365 days a year! Two state-of-the-art Evolution Dog Wash units with built-in herbal shampoos, conditioner, towels, and blow dryers.",
-    price: 20,
+    price: 12,
     duration: 45,
     icon: "Waves" as const,
     popular: true,
@@ -47,12 +77,14 @@ export const services = [
 ];
 
 export const addOns = [
-  { id: "teeth-brushing", name: "Teeth Brushing", price: 10, description: "Fresh breath and cleaner teeth" },
-  { id: "flea-treatment", name: "Flea & Tick Treatment", price: 15, description: "Preventative flea and tick bath" },
-  { id: "blueberry-facial", name: "Blueberry Facial", price: 12, description: "Gentle tear stain removal" },
-  { id: "paw-balm", name: "Paw Pad Balm", price: 8, description: "Moisturize and protect paw pads" },
-  { id: "cologne", name: "Finishing Cologne", price: 5, description: "Fresh scent to finish the look" },
-  { id: "nail-grinding", name: "Nail Grinding", price: 10, description: "Smooth edges after trim" },
+  { id: "nail-trim-buff", name: "Nail Trim & Buff", price: 15, description: "Professional nail trim and smooth buff" },
+  { id: "anal-gland", name: "Anal Gland Expression", price: 12, description: "Safe and gentle expression" },
+  { id: "sanitary-trim", name: "Sanitary Trim", price: 12, description: "Trimming of private areas, facial hair, or paw pads — owner's preference" },
+  { id: "teeth-brushing", name: "Teeth Brushing", price: 5, description: "Fresh breath and cleaner teeth" },
+  { id: "deshed", name: "De-shed Treatment", price: 20, description: "Add to any Basic or Deluxe Groom" },
+  { id: "dematt", name: "De-matt Treatment", price: 20, description: "Add to any Basic or Deluxe Groom ($20-$50 based on severity)" },
+  { id: "deskunk", name: "De-Skunk Treatment", price: 25, description: "Add to any Basic or Deluxe Groom" },
+  { id: "flea-tick", name: "Flea & Tick Treatment", price: 20, description: "Add to any Basic or Deluxe Groom" },
 ];
 
 export const testimonials = [
@@ -96,7 +128,11 @@ export const testimonials = [
 export const faqs = [
   {
     question: "How long does a full grooming session take?",
-    answer: "A full grooming session typically takes 1.5 to 2 hours depending on your dog's size, coat type, and condition. We never rush your pup!",
+    answer: "A full grooming session typically takes 1 to 1.5 hours depending on your dog's size, coat type, and condition. We never rush your pup!",
+  },
+  {
+    question: "What's the difference between Basic and Deluxe grooming?",
+    answer: "The Basic package includes shampoo, condition, blueberry facial, ear clean, brush, blow dry, cologne, and a bow or bandana. The Deluxe adds a full haircut and style, sanitary trim, teeth brushing, and nail trim with buff — the complete pampering experience!",
   },
   {
     question: "Is the self-service wash really open 24/7?",
@@ -104,19 +140,15 @@ export const faqs = [
   },
   {
     question: "Do I need an appointment for a nail trim?",
-    answer: "Nope! Walk-in nail trims for both dogs and cats are available Monday and Wednesday through Saturday, 9 AM to 5 PM. No appointment needed.",
+    answer: "Standalone nail trims and buffs are available as walk-ins during business hours, or you can add them on to any grooming appointment.",
   },
   {
     question: "Do you groom cats too?",
-    answer: "Yes! We offer professional grooming services for both dogs and cats by appointment.",
+    answer: "Yes! We offer professional bathing ($30-$60), full grooming ($70-$100), and nail trims ($12) for cats.",
   },
   {
-    question: "What if my dog has matting?",
-    answer: "We assess matting on arrival. Minor matting is included in grooming. Severe matting may require a shave-down for your dog's comfort and safety, which we'll discuss with you before proceeding.",
-  },
-  {
-    question: "Do you accept walk-ins for grooming?",
-    answer: "Walk-ins are welcome for nail trims and self-service wash stations. Full grooming and specialty services require an appointment.",
+    question: "Are prices final or can they change?",
+    answer: "Prices are subject to change on all grooming services after consultation. Factors like coat condition, matting, and temperament may affect the final price. We'll always discuss pricing with you upfront.",
   },
 ];
 
@@ -152,12 +184,12 @@ export const businessInfo = {
   zip: "25526",
   hours: [
     { day: "Monday", open: "9:00 AM", close: "5:00 PM" },
-    { day: "Tuesday", open: "Closed", close: "" },
+    { day: "Tuesday", open: "9:00 AM", close: "5:00 PM" },
     { day: "Wednesday", open: "9:00 AM", close: "5:00 PM" },
     { day: "Thursday", open: "9:00 AM", close: "5:00 PM" },
     { day: "Friday", open: "9:00 AM", close: "5:00 PM" },
-    { day: "Saturday", open: "9:00 AM", close: "5:00 PM" },
-    { day: "Sunday", open: "9:00 AM", close: "5:00 PM" },
+    { day: "Saturday", open: "10:00 AM", close: "6:00 PM" },
+    { day: "Sunday", open: "Closed", close: "" },
   ],
   selfWashHours: "24/7, 365 days a year",
   socialLinks: {
@@ -173,8 +205,8 @@ export const businessInfo = {
 
 export const policies = [
   {
-    title: "Vaccination Policy",
-    content: "All dogs must have current Rabies, DHPP, and Bordetella vaccinations. Proof is required on your first visit and when boosters are due.",
+    title: "Pricing Policy",
+    content: "Prices are subject to change on all grooming services after consultation. Factors such as coat condition, matting severity, and temperament may affect the final price.",
   },
   {
     title: "Cancellation Policy",
@@ -186,7 +218,7 @@ export const policies = [
   },
   {
     title: "Matting Policy",
-    content: "Severely matted coats may require a shave-down for the comfort and safety of your pet. We will always consult with you before proceeding. An additional de-matting fee may apply.",
+    content: "Severely matted coats may require a de-matt treatment ($20-$50 added to your groom, based on severity). We will always consult with you before proceeding.",
   },
   {
     title: "Aggressive Behavior",

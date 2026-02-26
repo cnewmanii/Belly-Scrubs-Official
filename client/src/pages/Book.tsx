@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Service, AddOn } from "@/data/siteData";
+import type { Service, AddOn, SizeOption } from "@/data/siteData";
 
 const iconMap: Record<string, any> = { Scissors, Droplets, Wind, Sparkles, Waves };
 
@@ -119,6 +119,8 @@ export default function Book() {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedSize, setSelectedSize] = useState<SizeOption | null>(null);
+  const [selectedHairType, setSelectedHairType] = useState<"short" | "long">("short");
   const [selectedAddOns, setSelectedAddOns] = useState<AddOn[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
@@ -127,6 +129,15 @@ export default function Book() {
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+
+  const hasSizeOptions = selectedService && "sizeOptions" in selectedService && selectedService.sizeOptions;
+
+  const servicePrice = (() => {
+    if (hasSizeOptions && selectedSize) {
+      return selectedHairType === "long" ? selectedSize.longHairPrice : selectedSize.shortHairPrice;
+    }
+    return selectedService?.price ?? 0;
+  })();
 
   const form = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
@@ -162,11 +173,11 @@ export default function Book() {
     if (selectedDate) loadSlots(selectedDate);
   }, [selectedDate, loadSlots]);
 
-  const totalPrice = (selectedService?.price ?? 0) + selectedAddOns.reduce((sum, a) => sum + a.price, 0);
+  const totalPrice = servicePrice + selectedAddOns.reduce((sum, a) => sum + a.price, 0);
 
   const canProceed = () => {
     switch (step) {
-      case 1: return !!selectedService;
+      case 1: return !!selectedService && (!hasSizeOptions || !!selectedSize);
       case 2: return true;
       case 3: return !!selectedSlot && !!selectedDate;
       case 4: return form.formState.isValid;
@@ -188,9 +199,12 @@ export default function Book() {
     setSubmitting(true);
 
     const values = form.getValues();
+    const sizeInfo = selectedSize
+      ? `${selectedSize.size} (${selectedSize.weight}), ${selectedHairType === "long" ? "Long" : "Short"} Hair`
+      : null;
     const bookingData = {
       serviceId: selectedService.id,
-      serviceName: selectedService.name,
+      serviceName: selectedService.name + (sizeInfo ? ` - ${sizeInfo}` : ""),
       addOns: selectedAddOns.map((a) => a.name),
       date: selectedDate.toISOString().split("T")[0],
       time: selectedSlot.startTime,
@@ -387,10 +401,19 @@ export default function Book() {
                       {services.map((service) => {
                         const Icon = iconMap[service.icon] || Sparkles;
                         const isSelected = selectedService?.id === service.id;
+                        const priceLabel = "priceRange" in service && service.priceRange
+                          ? service.priceRange
+                          : "sizeOptions" in service && service.sizeOptions
+                            ? `From $${service.price}`
+                            : `$${service.price}`;
                         return (
                           <button
                             key={service.id}
-                            onClick={() => setSelectedService(service)}
+                            onClick={() => {
+                              setSelectedService(service);
+                              setSelectedSize(null);
+                              setSelectedHairType("short");
+                            }}
                             className={`text-left p-5 rounded-xl border-2 transition-all ${
                               isSelected
                                 ? "border-primary bg-primary/5"
@@ -411,7 +434,7 @@ export default function Book() {
                             <h3 className="font-semibold text-foreground mb-1">{service.name}</h3>
                             <p className="text-xs text-muted-foreground mb-3 leading-relaxed">{service.description}</p>
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-foreground">${service.price}</span>
+                              <span className="font-bold text-foreground">{priceLabel}</span>
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Clock className="w-3 h-3" /> {service.duration} min
                               </span>
@@ -420,6 +443,62 @@ export default function Book() {
                         );
                       })}
                     </div>
+
+                    {hasSizeOptions && (
+                      <div className="mt-6 space-y-4">
+                        <h3 className="font-semibold text-foreground">Select Pet Size & Hair Type</h3>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {(selectedService as any).sizeOptions.map((opt: SizeOption) => {
+                            const isActive = selectedSize?.size === opt.size;
+                            return (
+                              <button
+                                key={opt.size}
+                                onClick={() => setSelectedSize(opt)}
+                                className={`p-3 rounded-xl border-2 text-center transition-all ${
+                                  isActive ? "border-primary bg-primary/5" : "border-border bg-background hover-elevate"
+                                }`}
+                                data-testid={`button-size-${opt.size.toLowerCase()}`}
+                              >
+                                <span className="font-semibold text-sm text-foreground block">{opt.size}</span>
+                                <span className="text-xs text-muted-foreground">{opt.weight}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => setSelectedHairType("short")}
+                            className={`p-3 rounded-xl border-2 text-center transition-all ${
+                              selectedHairType === "short" ? "border-primary bg-primary/5" : "border-border bg-background hover-elevate"
+                            }`}
+                            data-testid="button-hair-short"
+                          >
+                            <span className="font-semibold text-sm text-foreground">Short Hair</span>
+                            {selectedSize && (
+                              <span className="block text-xs text-muted-foreground mt-0.5">${selectedSize.shortHairPrice}</span>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setSelectedHairType("long")}
+                            className={`p-3 rounded-xl border-2 text-center transition-all ${
+                              selectedHairType === "long" ? "border-primary bg-primary/5" : "border-border bg-background hover-elevate"
+                            }`}
+                            data-testid="button-hair-long"
+                          >
+                            <span className="font-semibold text-sm text-foreground">Long Hair</span>
+                            {selectedSize && (
+                              <span className="block text-xs text-muted-foreground mt-0.5">${selectedSize.longHairPrice}</span>
+                            )}
+                          </button>
+                        </div>
+
+                        {!selectedSize && (
+                          <p className="text-sm text-amber-600 dark:text-amber-400">Please select your pet's size to continue</p>
+                        )}
+                      </div>
+                    )}
                   </Card>
                 )}
 
@@ -666,7 +745,10 @@ export default function Book() {
                       <div className="p-4 rounded-xl bg-muted/50">
                         <h3 className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">Service</h3>
                         <p className="font-semibold text-foreground">{selectedService?.name}</p>
-                        <p className="text-muted-foreground">{selectedService?.duration} minutes - ${selectedService?.price}</p>
+                        {selectedSize && (
+                          <p className="text-muted-foreground">{selectedSize.size} Dog, {selectedHairType === "long" ? "Long" : "Short"} Hair</p>
+                        )}
+                        <p className="text-muted-foreground">{selectedService?.duration} minutes - ${servicePrice}</p>
                       </div>
 
                       {selectedAddOns.length > 0 && (
@@ -769,7 +851,10 @@ export default function Book() {
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between gap-2">
                       <span className="text-muted-foreground">Service</span>
-                      <span className="font-medium text-foreground text-right" data-testid="text-summary-service">{selectedService.name}</span>
+                      <span className="font-medium text-foreground text-right" data-testid="text-summary-service">
+                        {selectedService.name}
+                        {selectedSize && ` (${selectedSize.size}, ${selectedHairType === "long" ? "Long" : "Short"} Hair)`}
+                      </span>
                     </div>
                     <div className="flex justify-between gap-2">
                       <span className="text-muted-foreground">Duration</span>
@@ -777,7 +862,7 @@ export default function Book() {
                     </div>
                     <div className="flex justify-between gap-2">
                       <span className="text-muted-foreground">Price</span>
-                      <span className="text-foreground">${selectedService.price}</span>
+                      <span className="text-foreground">${servicePrice}</span>
                     </div>
 
                     {selectedAddOns.length > 0 && (

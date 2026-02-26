@@ -217,7 +217,12 @@ function ServicesSection() {
                     <p className="text-sm text-muted-foreground leading-relaxed mb-4">{service.description}</p>
                     <div className="flex items-center justify-between gap-2 pt-3 border-t border-border/50">
                       <div className="flex items-center gap-3">
-                        <span className="text-lg font-bold text-foreground">${service.price}</span>
+                        <span className="text-lg font-bold text-foreground">
+                          {"priceRange" in service && service.priceRange ? service.priceRange : `$${service.price}`}
+                        </span>
+                        {"sizeOptions" in service && service.sizeOptions && (
+                          <span className="text-xs text-muted-foreground">& up</span>
+                        )}
                         <span className="text-xs text-muted-foreground">{service.duration} min</span>
                       </div>
                       <Link href="/book">
@@ -402,9 +407,9 @@ function LocationSection() {
                 <Card className="p-6 text-center hover-elevate" data-testid="card-hours">
                   <Clock className="w-8 h-8 text-primary mx-auto mb-3" />
                   <h3 className="font-semibold text-foreground mb-2">Grooming Hours</h3>
-                  <p className="text-sm text-muted-foreground">Mon, Wed - Sat: 9AM - 5PM</p>
-                  <p className="text-sm text-muted-foreground">Tuesday: Closed</p>
-                  <p className="text-sm text-muted-foreground">Sunday: 9AM - 5PM</p>
+                  <p className="text-sm text-muted-foreground">Mon - Fri: 9AM - 5PM</p>
+                  <p className="text-sm text-muted-foreground">Saturday: 10AM - 6PM</p>
+                  <p className="text-sm text-muted-foreground">Sunday: Closed</p>
                   <p className="text-sm text-primary font-medium mt-1">Self-Service Wash: 24/7</p>
                 </Card>
 
