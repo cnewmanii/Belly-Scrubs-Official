@@ -154,22 +154,11 @@ export const faqs = [
 
 export const teamMembers = [
   {
-    name: "Phil Schenk",
-    role: "Owner & Founder",
-    bio: "Phil founded Belly scRubs in 2010 to create a clean, welcoming space where every pet gets treated like family. Over 15 years of dedication to pets in the Putnam County area.",
-    initials: "PS",
-  },
-  {
-    name: "Nicole",
-    role: "Chief Operations Officer",
-    bio: "Nicole has been keeping Belly scRubs running smoothly since 2014. She ensures every visit is a great experience from start to finish.",
-    initials: "N",
-  },
-  {
-    name: "Alyssa",
-    role: "Professional Groomer",
-    bio: "Alyssa joined the team in 2017 and brings a gentle, skilled touch to every grooming session. She has a gift for calming even the most nervous pups.",
-    initials: "A",
+    name: "Teagan",
+    role: "Dog Groomer",
+    bio: "With 4 years of hands-on experience at animal shelters, a veterinary hospital, and as a professional bather and groomer, Teagan brings a compassionate touch to every session. A proud pet parent to three dogs — Seymour the dachshund, Scout the pit beagle mix, and Roxy the boxer — plus five cats and three guinea pigs, her love for animals shines through in her work. Her rescue and foster background means every pup gets extra care and patience.",
+    initials: "T",
+    photo: true,
   },
 ];
 

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/accordion";
 import { SoapDivider } from "@/components/layout/SoapDivider";
 import { teamMembers, values, faqs, policies } from "@/data/siteData";
+import teaganPhoto from "@assets/image_1772080507657.png";
 import {
   Heart,
   Shield,
@@ -67,7 +68,7 @@ function StorySection() {
             className="text-muted-foreground leading-relaxed space-y-4 max-w-2xl mx-auto text-left sm:text-center"
           >
             <p>
-              Belly scRubs started in 2010 with a simple idea: every pet deserves to feel clean, comfortable, and cared for — without the stress. Founded by Phil Schenk in Hurricane, West Virginia, our shop was built from the ground up to be a calm, welcoming space for pets and their humans.
+              Belly scRubs has been a staple in Hurricane, West Virginia since 2010, built on a simple idea: every pet deserves to feel clean, comfortable, and cared for — without the stress. Our shop was designed from the ground up to be a calm, welcoming space for pets and their humans.
             </p>
             <p>
               Located in Lakeview Plaza, halfway between Charleston and Huntington just off I-64 Exit 39, we've been proudly serving the Putnam County community for over 15 years. We offer award-winning professional grooming for dogs and cats, plus two state-of-the-art Evolution Dog Wash self-service units available 24/7.
@@ -150,7 +151,7 @@ function TeamSection() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="text-muted-foreground text-center mb-14 max-w-lg mx-auto"
         >
-          Certified, experienced, and passionate about making every pup feel special
+          Experienced and passionate about making every pup feel special
         </motion.p>
 
         <motion.div
@@ -158,17 +159,25 @@ function TeamSection() {
           whileInView="visible"
           viewport={{ once: true }}
           variants={stagger}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
+          className="max-w-2xl mx-auto"
         >
           {teamMembers.map((member) => (
             <motion.div key={member.name} variants={fadeUp} transition={{ duration: 0.4 }}>
-              <Card className="p-6 text-center h-full hover-elevate" data-testid={`card-team-${member.initials}`}>
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-xl font-bold text-primary">{member.initials}</span>
+              <Card className="overflow-hidden hover-elevate" data-testid={`card-team-${member.initials}`}>
+                <div className="flex flex-col sm:flex-row">
+                  <div className="sm:w-64 flex-shrink-0">
+                    <img
+                      src={teaganPhoto}
+                      alt={`${member.name} with her dogs`}
+                      className="w-full h-64 sm:h-full object-cover object-top"
+                    />
+                  </div>
+                  <div className="p-6 flex flex-col justify-center">
+                    <h3 className="font-semibold text-xl text-foreground mb-1">{member.name}</h3>
+                    <p className="text-sm text-primary font-medium mb-4">{member.role}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{member.bio}</p>
+                  </div>
                 </div>
-                <h3 className="font-semibold text-foreground mb-1">{member.name}</h3>
-                <p className="text-xs text-primary font-medium mb-3">{member.role}</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">{member.bio}</p>
               </Card>
             </motion.div>
           ))}
