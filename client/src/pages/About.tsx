@@ -176,7 +176,7 @@ function TeamSection() {
                   <img
                     src={teamPhotos[member.name]}
                     alt={`${member.name} with her pets`}
-                    className="w-full h-64 object-cover object-top"
+                    className="w-full h-72 object-cover object-center"
                   />
                 )}
                 <div className="p-6">
