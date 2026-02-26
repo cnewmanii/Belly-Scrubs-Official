@@ -10,10 +10,12 @@ import { insertBookingSchema } from "@shared/schema";
 import { stripeEnabled } from "./index";
 
 function getOpenAIClient() {
-  return new OpenAI({
-    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  });
+  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const config: { apiKey?: string; baseURL?: string } = { apiKey };
+  if (!process.env.OPENAI_API_KEY && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+    config.baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  }
+  return new OpenAI(config);
 }
 
 const CALENDAR_PRICE_CENTS = 2999;
