@@ -56,7 +56,7 @@ shared/
 - **ICS Generation**: Client-side calendar file download after booking
 - **Booking API**: POST /api/bookings with Zod validation
 - **Pet Calendar Creator**: AI-generated holiday-themed pet images using OpenAI gpt-image-1
-- **Stripe Integration**: Payment processing for pet calendar purchases ($29.99)
+- **Stripe Integration**: Payment processing for pet calendar purchases ($29.99) — NOT YET ACTIVATED. To enable, connect Stripe via the Replit Stripe connector integration. The app runs without it; calendar creation and AI generation work, but purchasing is disabled.
 
 ## API Routes
 - `POST /api/bookings` - Create a grooming booking
