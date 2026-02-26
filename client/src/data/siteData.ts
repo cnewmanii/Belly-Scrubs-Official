@@ -65,15 +65,6 @@ export const services = [
     icon: "Sparkles" as const,
     popular: false,
   },
-  {
-    id: "self-wash",
-    name: "Self-Service Dog Wash",
-    description: "Available 24/7, 365 days a year! Two state-of-the-art Evolution Dog Wash units with built-in herbal shampoos, conditioner, towels, and blow dryers.",
-    price: 12,
-    duration: 45,
-    icon: "Waves" as const,
-    popular: true,
-  },
 ];
 
 export const addOns = [
