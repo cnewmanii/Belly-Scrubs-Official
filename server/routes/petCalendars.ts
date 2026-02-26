@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import OpenAI from "openai";
 import { toFile } from "openai";
+import pLimit from "p-limit";
 import { storage } from "../storage";
 import { stripeEnabled } from "../index";
 
@@ -38,39 +39,47 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+const IMAGE_CONCURRENCY = 4;
+
 async function generateMonthImages(calendarId: number, petName: string, petType: string, photoBuffer: Buffer) {
   await storage.updatePetCalendarStatus(calendarId, "generating");
 
   const genDir = path.join(process.cwd(), "client", "public", "generated", String(calendarId));
   fs.mkdirSync(genDir, { recursive: true });
 
-  for (const monthInfo of MONTHS) {
-    try {
-      const monthRow = await storage.createPetCalendarMonth(calendarId, monthInfo.month, monthInfo.holiday);
+  const limit = pLimit(IMAGE_CONCURRENCY);
 
-      const prompt = `A charming, high-quality digital illustration of a ${petType} named ${petName} ${monthInfo.prompt}. The ${petType} is the main subject, depicted in a warm and playful illustration style suitable for a wall calendar. Keep the pet's appearance consistent and adorable.`;
+  await Promise.all(
+    MONTHS.map((monthInfo) =>
+      limit(async () => {
+        try {
+          const monthRow = await storage.createPetCalendarMonth(calendarId, monthInfo.month, monthInfo.holiday);
 
-      const imageFile = await toFile(photoBuffer, "pet.png", { type: "image/png" });
-      const openai = getOpenAIClient();
+          const prompt = `A charming, high-quality digital illustration of a ${petType} named ${petName} ${monthInfo.prompt}. The ${petType} is the main subject, depicted in a warm and playful illustration style suitable for a wall calendar. Keep the pet's appearance consistent and adorable.`;
 
-      const response = await openai.images.edit({
-        model: "gpt-image-1",
-        image: imageFile,
-        prompt,
-        n: 1,
-        size: "1024x1024",
-      });
+          const imageFile = await toFile(photoBuffer, "pet.png", { type: "image/png" });
+          const openai = getOpenAIClient();
 
-      const base64 = response.data[0]?.b64_json;
-      if (base64) {
-        const imgPath = path.join(genDir, `${monthInfo.month}.png`);
-        fs.writeFileSync(imgPath, Buffer.from(base64, "base64"));
-        await storage.updatePetCalendarMonthImage(monthRow.id, `/generated/${calendarId}/${monthInfo.month}.png`);
-      }
-    } catch (err) {
-      console.error(`Error generating month ${monthInfo.month}:`, err);
-    }
-  }
+          const response = await openai.images.edit({
+            model: "gpt-image-1",
+            image: imageFile,
+            prompt,
+            n: 1,
+            size: "1024x1024",
+          });
+
+          const base64 = response.data[0]?.b64_json;
+          if (base64) {
+            const imgPath = path.join(genDir, `${monthInfo.month}.png`);
+            fs.writeFileSync(imgPath, Buffer.from(base64, "base64"));
+            await storage.updatePetCalendarMonthImage(monthRow.id, `/generated/${calendarId}/${monthInfo.month}.png`);
+          }
+        } catch (err) {
+          console.error(`Error generating month ${monthInfo.month}:`, err);
+        }
+      })
+    )
+  );
 
   await storage.updatePetCalendarStatus(calendarId, "ready");
 }
