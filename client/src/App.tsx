@@ -10,6 +10,9 @@ import Home from "@/pages/Home";
 import About from "@/pages/About";
 import Calendars from "@/pages/Calendars";
 import Book from "@/pages/Book";
+import PetCalendarCreate from "@/pages/PetCalendarCreate";
+import PetCalendarView from "@/pages/PetCalendarView";
+import PetCalendarSuccess from "@/pages/PetCalendarSuccess";
 import NotFound from "@/pages/not-found";
 
 function ScrollToTop() {
@@ -29,6 +32,9 @@ function Router() {
         <Route path="/about" component={About} />
         <Route path="/calendars" component={Calendars} />
         <Route path="/book" component={Book} />
+        <Route path="/pet-calendar/create" component={PetCalendarCreate} />
+        <Route path="/pet-calendar/success" component={PetCalendarSuccess} />
+        <Route path="/pet-calendar/:id" component={PetCalendarView} />
         <Route component={NotFound} />
       </Switch>
     </>
