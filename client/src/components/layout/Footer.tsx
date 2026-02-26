@@ -3,6 +3,7 @@ import { businessInfo } from "@/data/siteData";
 import { SoapDivider } from "./SoapDivider";
 import { Phone, Mail, MapPin, Clock, Instagram } from "lucide-react";
 import { SiFacebook } from "react-icons/si";
+import logoImg from "@assets/Belly_Scrubs_logo-02_1772081283831.jpg";
 
 const footerNav = [
   { href: "/", label: "Home" },
@@ -18,33 +19,31 @@ export function Footer() {
 
   return (
     <footer className="relative" data-testid="footer">
-      <SoapDivider fillClass="text-[#45484A] dark:text-[#1a1d20]" />
+      <SoapDivider fillClass="text-[#1a2a33] dark:text-[#0d1519]" />
 
-      <div className="bg-[#45484A] dark:bg-[#1a1d20] text-[#F7F1E1] dark:text-[#e8e0cc]">
+      <div className="bg-[#1a2a33] dark:bg-[#0d1519] text-[#d9eaf0] dark:text-[#c8dde5]">
         <div className="max-w-6xl mx-auto px-6 py-16">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-[#BAD9E5] flex items-center justify-center">
-                  <span className="text-[#45484A] font-bold text-sm">BS</span>
-                </div>
-                <span className="font-bold text-lg">{businessInfo.name}</span>
+              <div className="flex items-center gap-2.5 mb-4">
+                <img src={logoImg} alt={businessInfo.name} className="w-10 h-10 rounded-xl object-cover" />
+                <span className="font-serif font-bold text-lg">{businessInfo.name}</span>
               </div>
-              <p className="text-sm text-[#F7F1E1]/80 dark:text-[#e8e0cc]/80 leading-relaxed">
-                Premium dog grooming and self-service pet wash.
+              <p className="text-sm text-[#d9eaf0]/80 dark:text-[#c8dde5]/80 leading-relaxed">
+                Pet grooming and self-service dog wash.
                 Where every pup leaves happy, healthy, and fresh.
               </p>
             </div>
 
             <div>
-              <h3 className="font-semibold text-sm uppercase tracking-wider mb-4 text-[#BAD9E5]">
+              <h3 className="font-semibold text-sm uppercase tracking-wider mb-4 text-[#7ab8d0]">
                 Quick Links
               </h3>
               <ul className="space-y-2">
                 {footerNav.map((link) => (
                   <li key={link.href}>
                     <Link href={link.href}>
-                      <span className="text-sm text-[#F7F1E1]/70 dark:text-[#e8e0cc]/70 cursor-pointer transition-colors" data-testid={`link-footer-${link.label.toLowerCase().replace(/\s/g, "-")}`}>
+                      <span className="text-sm text-[#d9eaf0]/70 dark:text-[#c8dde5]/70 cursor-pointer transition-colors" data-testid={`link-footer-${link.label.toLowerCase().replace(/\s/g, "-")}`}>
                         {link.label}
                       </span>
                     </Link>
@@ -54,24 +53,24 @@ export function Footer() {
             </div>
 
             <div>
-              <h3 className="font-semibold text-sm uppercase tracking-wider mb-4 text-[#BAD9E5]">
+              <h3 className="font-semibold text-sm uppercase tracking-wider mb-4 text-[#7ab8d0]">
                 Contact
               </h3>
-              <ul className="space-y-3 text-sm text-[#F7F1E1]/70 dark:text-[#e8e0cc]/70">
+              <ul className="space-y-3 text-sm text-[#d9eaf0]/70 dark:text-[#c8dde5]/70">
                 <li>
                   <a href={`tel:${businessInfo.phone}`} className="flex items-center gap-2" data-testid="link-footer-phone">
-                    <Phone className="w-4 h-4 text-[#BAD9E5]" />
+                    <Phone className="w-4 h-4 text-[#7ab8d0]" />
                     {businessInfo.phone}
                   </a>
                 </li>
                 <li>
                   <a href={`mailto:${businessInfo.email}`} className="flex items-center gap-2" data-testid="link-footer-email">
-                    <Mail className="w-4 h-4 text-[#BAD9E5]" />
+                    <Mail className="w-4 h-4 text-[#7ab8d0]" />
                     {businessInfo.email}
                   </a>
                 </li>
                 <li className="flex items-start gap-2">
-                  <MapPin className="w-4 h-4 text-[#BAD9E5] mt-0.5 flex-shrink-0" />
+                  <MapPin className="w-4 h-4 text-[#7ab8d0] mt-0.5 flex-shrink-0" />
                   <span>
                     {businessInfo.address}<br />
                     {businessInfo.city}, {businessInfo.state} {businessInfo.zip}
@@ -81,23 +80,23 @@ export function Footer() {
             </div>
 
             <div>
-              <h3 className="font-semibold text-sm uppercase tracking-wider mb-4 text-[#BAD9E5]">
+              <h3 className="font-semibold text-sm uppercase tracking-wider mb-4 text-[#7ab8d0]">
                 Hours
               </h3>
-              <div className="space-y-1.5 text-sm text-[#F7F1E1]/70 dark:text-[#e8e0cc]/70">
+              <div className="space-y-1.5 text-sm text-[#d9eaf0]/70 dark:text-[#c8dde5]/70">
                 {businessInfo.hours.map((h) => (
-                  <div key={h.day} className={`flex justify-between gap-2 ${h.day === todayHours?.day ? "text-[#BAD9E5] font-medium" : ""}`}>
+                  <div key={h.day} className={`flex justify-between gap-2 ${h.day === todayHours?.day ? "text-[#7ab8d0] font-medium" : ""}`}>
                     <span>{h.day.slice(0, 3)}</span>
                     <span>{h.open === "Closed" ? "Closed" : `${h.open} - ${h.close}`}</span>
                   </div>
                 ))}
                 {todayHours && (
-                  <div className="flex items-center gap-1.5 mt-3 text-[#BAD9E5] text-xs">
+                  <div className="flex items-center gap-1.5 mt-3 text-[#7ab8d0] text-xs">
                     <Clock className="w-3 h-3" />
                     {todayHours.open === "Closed" ? "Closed today" : `Open today ${todayHours.open} - ${todayHours.close}`}
                   </div>
                 )}
-              <div className="flex items-center gap-1.5 mt-3 text-[#BAD9E5] text-xs">
+                <div className="flex items-center gap-1.5 mt-3 text-[#7ab8d0] text-xs">
                   <Clock className="w-3 h-3" />
                   Self-Service Wash: {businessInfo.selfWashHours}
                 </div>
@@ -105,8 +104,8 @@ export function Footer() {
             </div>
           </div>
 
-          <div className="border-t border-[#F7F1E1]/10 dark:border-[#e8e0cc]/10 mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-[#F7F1E1]/50 dark:text-[#e8e0cc]/50">
+          <div className="border-t border-[#d9eaf0]/10 dark:border-[#c8dde5]/10 mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-[#d9eaf0]/50 dark:text-[#c8dde5]/50">
               {new Date().getFullYear()} {businessInfo.name}. All rights reserved.
             </p>
             <div className="flex items-center gap-3">
@@ -114,7 +113,7 @@ export function Footer() {
                 href={businessInfo.socialLinks.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-[#F7F1E1]/10 flex items-center justify-center transition-colors"
+                className="w-8 h-8 rounded-lg bg-[#d9eaf0]/10 flex items-center justify-center transition-colors"
                 aria-label="Instagram"
                 data-testid="link-instagram"
               >
@@ -124,7 +123,7 @@ export function Footer() {
                 href={businessInfo.socialLinks.facebook}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-[#F7F1E1]/10 flex items-center justify-center transition-colors"
+                className="w-8 h-8 rounded-lg bg-[#d9eaf0]/10 flex items-center justify-center transition-colors"
                 aria-label="Facebook"
                 data-testid="link-facebook"
               >

@@ -48,8 +48,8 @@ function HeroSection() {
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center px-6 pt-24 pb-16" data-testid="section-hero">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 right-10 w-64 h-64 rounded-full bg-[#BAD9E5]/20 dark:bg-[#BAD9E5]/5 blur-3xl" />
-        <div className="absolute bottom-20 left-10 w-80 h-80 rounded-full bg-[#BAD9E5]/15 dark:bg-[#BAD9E5]/5 blur-3xl" />
+        <div className="absolute top-20 right-10 w-64 h-64 rounded-full bg-[#7ab8d0]/20 dark:bg-[#7ab8d0]/5 blur-3xl" />
+        <div className="absolute bottom-20 left-10 w-80 h-80 rounded-full bg-[#7ab8d0]/15 dark:bg-[#7ab8d0]/5 blur-3xl" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
@@ -136,7 +136,7 @@ function AvailabilityTeaser() {
         transition={{ duration: 0.5 }}
         className="max-w-4xl mx-auto"
       >
-        <Card className="p-6 sm:p-8 bg-[#BAD9E5]/20 dark:bg-[#BAD9E5]/5 border-[#BAD9E5]/30 dark:border-[#BAD9E5]/10">
+        <Card className="p-6 sm:p-8 bg-[#7ab8d0]/20 dark:bg-[#7ab8d0]/5 border-[#7ab8d0]/30 dark:border-[#7ab8d0]/10">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -175,8 +175,8 @@ function AvailabilityTeaser() {
 function ServicesSection() {
   return (
     <section className="relative" data-testid="section-services">
-      <SoapDivider fillClass="text-[#BAD9E5]/20 dark:text-[#BAD9E5]/5" />
-      <div className="bg-[#BAD9E5]/20 dark:bg-[#BAD9E5]/5 px-6 py-20">
+      <SoapDivider fillClass="text-[#7ab8d0]/20 dark:text-[#7ab8d0]/5" />
+      <div className="bg-[#7ab8d0]/20 dark:bg-[#7ab8d0]/5 px-6 py-20">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial="hidden"
@@ -238,7 +238,7 @@ function ServicesSection() {
           </motion.div>
         </div>
       </div>
-      <SoapDivider flip fillClass="text-[#BAD9E5]/20 dark:text-[#BAD9E5]/5" />
+      <SoapDivider flip fillClass="text-[#7ab8d0]/20 dark:text-[#7ab8d0]/5" />
     </section>
   );
 }
@@ -340,11 +340,11 @@ function TestimonialsSection() {
 function GalleryStrip() {
   const placeholders = [
     { label: "Before", gradient: "from-amber-200 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/20" },
-    { label: "After", gradient: "from-[#BAD9E5] to-[#a8ccd8] dark:from-[#3a5a66] dark:to-[#2e4a54]" },
+    { label: "After", gradient: "from-[#7ab8d0] to-[#5ea3b8] dark:from-[#2a5060] dark:to-[#1f4050]" },
     { label: "Before", gradient: "from-orange-200 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/20" },
-    { label: "After", gradient: "from-[#BAD9E5] to-[#a8ccd8] dark:from-[#3a5a66] dark:to-[#2e4a54]" },
+    { label: "After", gradient: "from-[#7ab8d0] to-[#5ea3b8] dark:from-[#2a5060] dark:to-[#1f4050]" },
     { label: "Before", gradient: "from-yellow-200 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/20" },
-    { label: "After", gradient: "from-[#BAD9E5] to-[#a8ccd8] dark:from-[#3a5a66] dark:to-[#2e4a54]" },
+    { label: "After", gradient: "from-[#7ab8d0] to-[#5ea3b8] dark:from-[#2a5060] dark:to-[#1f4050]" },
   ];
 
   return (
@@ -383,8 +383,8 @@ function GalleryStrip() {
 function LocationSection() {
   return (
     <section className="relative" data-testid="section-location">
-      <SoapDivider fillClass="text-[#BAD9E5]/15 dark:text-[#BAD9E5]/5" />
-      <div className="bg-[#BAD9E5]/15 dark:bg-[#BAD9E5]/5 px-6 py-20">
+      <SoapDivider fillClass="text-[#7ab8d0]/15 dark:text-[#7ab8d0]/5" />
+      <div className="bg-[#7ab8d0]/15 dark:bg-[#7ab8d0]/5 px-6 py-20">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial="hidden"
@@ -424,7 +424,7 @@ function LocationSection() {
           </motion.div>
         </div>
       </div>
-      <SoapDivider flip fillClass="text-[#BAD9E5]/15 dark:text-[#BAD9E5]/5" />
+      <SoapDivider flip fillClass="text-[#7ab8d0]/15 dark:text-[#7ab8d0]/5" />
     </section>
   );
 }

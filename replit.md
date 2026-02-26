@@ -1,7 +1,7 @@
-# Belly Scrubs - Dog Grooming & Self-Service Pet Wash
+# Belly scRubs - Pet Grooming & Self-Service Dog Wash
 
 ## Overview
-A production-ready website for "Belly Scrubs", a dog grooming and self-service pet wash business. Built with React + TypeScript + Tailwind CSS, featuring a modern, playful-yet-premium design with subtle animations. Includes an integrated AI-powered Pet Calendar Creator.
+A production-ready website for "Belly scRubs", a pet grooming and self-service dog wash business in Hurricane, WV. Built with React + TypeScript + Tailwind CSS, featuring a modern, playful-yet-premium design with subtle animations. Includes an integrated AI-powered Pet Calendar Creator.
 
 ## Tech Stack
 - **Frontend**: React, TypeScript, Tailwind CSS, Framer Motion, wouter (routing)
@@ -14,10 +14,14 @@ A production-ready website for "Belly Scrubs", a dog grooming and self-service p
 - **AI**: OpenAI (gpt-image-1 for pet calendar image generation)
 - **Payments**: Stripe (for pet calendar purchases)
 
-## Brand Colors
-- Coconut Twist: #F7F1E1 (background)
-- Breeze Blue: #BAD9E5 (accents/sections)
-- Dark Secret: #45484A (text/contrast)
+## Brand Colors (matches logo)
+- Light Blue: HSL 198 40% 93% (background — cool, airy light blue)
+- Steel Blue: HSL 198 35% 42% (primary — buttons, links, accents)
+- Near Black: HSL 210 15% 15% (foreground text — dark, high contrast)
+- Accent Blue: #7ab8d0 (section tints, footer headings)
+- Footer Dark: #1a2a33 (dark blue-black footer background)
+- Logo imported from @assets/Belly_Scrubs_logo-02_1772081283831.jpg (displayed in Navbar and Footer)
+- Fonts: Plus Jakarta Sans (body), Playfair Display (headings/brand name)
 
 ## Project Structure
 ```

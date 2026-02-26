@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, Phone, MapPin, Calendar } from "lucide-react";
 import { businessInfo } from "@/data/siteData";
+import logoImg from "@assets/Belly_Scrubs_logo-02_1772081283831.jpg";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navLinks = [
@@ -44,11 +45,9 @@ export function Navbar() {
         data-testid="navbar"
       >
         <Link href="/" data-testid="link-home-logo">
-          <div className="flex items-center gap-2 cursor-pointer">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">BS</span>
-            </div>
-            <span className="font-bold text-lg tracking-tight text-foreground hidden sm:block">
+          <div className="flex items-center gap-2.5 cursor-pointer">
+            <img src={logoImg} alt={businessInfo.name} className="w-10 h-10 rounded-xl object-cover" />
+            <span className="font-serif font-bold text-lg tracking-tight text-foreground hidden sm:block">
               {businessInfo.name}
             </span>
           </div>

@@ -95,8 +95,8 @@ function StorySection() {
 function ValuesSection() {
   return (
     <section className="relative" data-testid="section-values">
-      <SoapDivider fillClass="text-[#BAD9E5]/20 dark:text-[#BAD9E5]/5" />
-      <div className="bg-[#BAD9E5]/20 dark:bg-[#BAD9E5]/5 px-6 py-20">
+      <SoapDivider fillClass="text-[#7ab8d0]/20 dark:text-[#7ab8d0]/5" />
+      <div className="bg-[#7ab8d0]/20 dark:bg-[#7ab8d0]/5 px-6 py-20">
         <div className="max-w-6xl mx-auto">
           <motion.h2
             initial="hidden"
@@ -133,7 +133,7 @@ function ValuesSection() {
           </motion.div>
         </div>
       </div>
-      <SoapDivider flip fillClass="text-[#BAD9E5]/20 dark:text-[#BAD9E5]/5" />
+      <SoapDivider flip fillClass="text-[#7ab8d0]/20 dark:text-[#7ab8d0]/5" />
     </section>
   );
 }
@@ -262,8 +262,8 @@ function FacilitySection() {
 
   return (
     <section className="relative" data-testid="section-facility">
-      <SoapDivider fillClass="text-[#BAD9E5]/15 dark:text-[#BAD9E5]/5" />
-      <div className="bg-[#BAD9E5]/15 dark:bg-[#BAD9E5]/5 px-6 py-20">
+      <SoapDivider fillClass="text-[#7ab8d0]/15 dark:text-[#7ab8d0]/5" />
+      <div className="bg-[#7ab8d0]/15 dark:bg-[#7ab8d0]/5 px-6 py-20">
         <div className="max-w-6xl mx-auto">
           <motion.h2
             initial="hidden"
@@ -299,7 +299,7 @@ function FacilitySection() {
           </motion.div>
         </div>
       </div>
-      <SoapDivider flip fillClass="text-[#BAD9E5]/15 dark:text-[#BAD9E5]/5" />
+      <SoapDivider flip fillClass="text-[#7ab8d0]/15 dark:text-[#7ab8d0]/5" />
     </section>
   );
 }
