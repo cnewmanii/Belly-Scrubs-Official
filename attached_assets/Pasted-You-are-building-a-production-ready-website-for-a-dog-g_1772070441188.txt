@@ -1,0 +1,108 @@
+You are building a production-ready website for a dog grooming + self-service pet wash business named “Belly Scrubs”.
+
+GOAL
+Create a modern, innovative, and unique UI (not a generic template) that feels premium, playful, and clean. The site must be fast, mobile-first, accessible, SEO-friendly, and easy to maintain.
+
+BRAND
+- Name: Belly Scrubs
+- Tone: upbeat, welcoming, modern, slightly playful (not cheesy)
+- Color palette (use exactly):
+  - Primary: Coconut Twist #F7F1E1 (background / warm off-white)
+  - Secondary: Breeze Blue #BAD9E5 (sections / accents / highlights)
+  - Accent: Dark Secret #45484A (text / contrast / buttons)
+- Design cues: soft rounded corners, airy spacing, subtle shadows, animated micro-interactions, and a “fresh & clean” vibe.
+
+TECH STACK (preferred)
+- Frontend: React + TypeScript + Tailwind
+- Routing: React Router
+- Animations: Framer Motion (lightweight, tasteful)
+- Forms + validation: React Hook Form + Zod
+- Backend: Node/Express (only if needed for secure server calls / webhooks)
+- Deployment-ready structure, with clear env var handling.
+
+UNIQUE UI REQUIREMENTS (make it stand out)
+- Create a distinctive “signature” layout element used across the site (ex: a curved “soap ribbon” divider, bubbly card edges, a floating navigation pill, or a split-hero with a sliding reveal).
+- Build a consistent component system: Button, Card, Section, Badge, Testimonial, PriceTile, FAQAccordion.
+- Add subtle interactive details: hover states, scroll reveal, animated counters (only if it helps), parallax-lite (very minimal), and a sticky “Book Now” action that adapts on mobile.
+- Use a unique header experience (ex: floating nav with frosted blur + quick actions: Call, Directions, Book).
+- Add a “Service Selector” UI that feels app-like (not just a list).
+
+SITE STRUCTURE / PAGES
+1) HOMEPAGE (/)
+   Must include:
+   - Hero section with a bold headline, subtext, and primary CTA “Book an Appointment”
+   - Secondary CTA “View Services” / “Self-Service Pet Wash”
+   - “Today’s availability” teaser panel (can be mocked now, wired later)
+   - Services preview cards: Grooming, Bath & Tidy, Deshedding, Nail Trim, Self-Service Wash
+   - Social proof: star rating placeholder + rotating testimonial carousel
+   - Before/After gallery strip (placeholder images OK)
+   - Location + hours + quick contact section
+   - FAQ preview
+   - Footer with links + social icons
+
+2) ABOUT PAGE (/about)
+   Must include:
+   - Story of Belly Scrubs (placeholder text)
+   - Values (care, safety, cleanliness, kindness)
+   - Team section (cards with roles; placeholder)
+   - Facility section: cleanliness, equipment, warm water, comfort
+   - Safety/Policies section (vaccinations, late pickup, matting policy – placeholders)
+
+3) CALENDARS TAB (/calendars)
+   This page must be built to “integrate another service” for calendar availability.
+   - Create an “Integration Ready” calendar view that supports:
+     Option A: embedded iframe calendar (simple)
+     Option B: API-based availability (recommended)
+   - For now: implement a working demo with mocked data and a toggle to switch “Mock Mode” vs “Live Mode”
+   - Provide an integration adapter pattern:
+     - CalendarProvider interface: listAvailability(dateRange), createHold(slot), releaseHold(holdId)
+     - Default provider: MockCalendarProvider
+     - Future providers: SquareBookingsProvider (or another service)
+   - The UI should show:
+     - monthly strip + day timeline view
+     - available slots as clickable chips
+     - service duration preview
+     - timezone handling
+
+4) BOOKING PAGE (/book)
+   Must include:
+   - A guided booking flow (stepper UI):
+     Step 1: Choose service (single-select)
+     Step 2: Choose add-ons (optional)
+     Step 3: Choose date/time (from Calendars provider)
+     Step 4: Customer info (name, phone, email, pet name, breed, notes)
+     Step 5: Confirm + deposit/payment (integration-ready)
+   - Validation, clean error states, loading skeletons
+   - Booking summary sidebar (updates live)
+   - After submission: confirmation page state + “Add to Calendar” button (ICS generation)
+   - Architect for Square Bookings + Square Payments:
+     - Use env vars for keys
+     - Do NOT hardcode secrets in frontend
+     - If live payment is not implemented now, stub it with a clear TODO and mock success
+
+NAVIGATION
+- Navbar links: Home, About, Calendars, Book
+- Persistent “Book Now” button
+- Footer repeats nav, plus hours, address, phone, email, and social links.
+
+CONTENT MANAGEMENT
+- Put services, prices, durations, FAQs, policies, testimonials in a single data file (JSON/TS object) so it’s easy to edit without touching layout code.
+
+DELIVERABLES
+- Provide the full project code.
+- Include a README with:
+  - how to run locally
+  - required environment variables
+  - where to add Square keys / calendar provider credentials
+  - how to switch Mock vs Live mode
+- Include a clean folder structure:
+  /src/pages, /src/components, /src/lib/providers, /src/data, /src/styles
+
+QUALITY BAR
+- Lighthouse-minded performance (optimize images, minimize heavy libraries)
+- Accessibility (keyboard nav, focus rings, aria labels)
+- Responsive design for mobile and desktop
+- No placeholder lorem ipsum in final key hero headings (use real-ish business copy); placeholders are OK for long “About” text.
+
+BUILD IT NOW
+Start by creating the full UI with mocked data and the provider pattern for future calendar integration. Make sure routes work and the app is visually polished.
