@@ -167,6 +167,13 @@ export const teamMembers = [
     initials: "S",
     photo: true,
   },
+  {
+    name: "Lindsay",
+    role: "Salon Assistant",
+    bio: "Lindsay brings over three years of customer service experience and two years working hands-on with animals as a kennel attendant and veterinary technician. She's skilled in baths, nail trims, and safe handling of dogs of all sizes, and she's certified in Pet CPR and First Aid — so your pups are in knowledgeable, caring hands. At home, Lindsay is a proud mom to three dogs: Enki the German Shepherd, Athena the Shepherd-Malinois mix, and Sierra the Pit mix.",
+    initials: "L",
+    photo: true,
+  },
 ];
 
 export const businessInfo = {

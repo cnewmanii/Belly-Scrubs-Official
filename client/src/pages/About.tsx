@@ -11,10 +11,12 @@ import { SoapDivider } from "@/components/layout/SoapDivider";
 import { teamMembers, values, faqs, policies } from "@/data/siteData";
 import teaganPhoto from "@assets/image_1772080507657.png";
 import serenaPhoto from "@assets/image_1772080571987.png";
+import lindsayPhoto from "@assets/614480787_1533437184993625_3713082189265715229_n_1772080700926.jpg";
 
 const teamPhotos: Record<string, string> = {
   Teagan: teaganPhoto,
   Serena: serenaPhoto,
+  Lindsay: lindsayPhoto,
 };
 import {
   Heart,
@@ -165,7 +167,7 @@ function TeamSection() {
           whileInView="visible"
           viewport={{ once: true }}
           variants={stagger}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto"
         >
           {teamMembers.map((member) => (
             <motion.div key={member.name} variants={fadeUp} transition={{ duration: 0.4 }}>
