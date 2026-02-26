@@ -2,12 +2,12 @@ import { Link } from "wouter";
 import { businessInfo } from "@/data/siteData";
 import { SoapDivider } from "./SoapDivider";
 import { Phone, Mail, MapPin, Clock, Instagram } from "lucide-react";
-import { SiFacebook, SiTiktok } from "react-icons/si";
+import { SiFacebook } from "react-icons/si";
 
 const footerNav = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
-  { href: "/calendars", label: "Calendars" },
+  { href: "/calendars", label: "Pet Calendars" },
   { href: "/book", label: "Book Now" },
 ];
 
@@ -97,6 +97,10 @@ export function Footer() {
                     {todayHours.open === "Closed" ? "Closed today" : `Open today ${todayHours.open} - ${todayHours.close}`}
                   </div>
                 )}
+              <div className="flex items-center gap-1.5 mt-3 text-[#BAD9E5] text-xs">
+                  <Clock className="w-3 h-3" />
+                  Self-Service Wash: {businessInfo.selfWashHours}
+                </div>
               </div>
             </div>
           </div>
@@ -125,16 +129,6 @@ export function Footer() {
                 data-testid="link-facebook"
               >
                 <SiFacebook className="w-4 h-4" />
-              </a>
-              <a
-                href={businessInfo.socialLinks.tiktok}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-[#F7F1E1]/10 flex items-center justify-center transition-colors"
-                aria-label="TikTok"
-                data-testid="link-tiktok"
-              >
-                <SiTiktok className="w-4 h-4" />
               </a>
             </div>
           </div>

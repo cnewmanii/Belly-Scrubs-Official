@@ -79,8 +79,8 @@ function HeroSection() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="text-lg sm:text-xl text-muted-foreground max-w-xl mx-auto mb-10 leading-relaxed"
         >
-          Premium grooming, gentle handling, and spotless self-service wash stations.
-          Your pup deserves the best — and we deliver.
+          Award-winning grooming, gentle handling, and 24/7 self-service wash stations.
+          Proudly serving Hurricane, WV and the Putnam County area since 2010.
         </motion.p>
 
         <motion.div
@@ -189,7 +189,7 @@ function ServicesSection() {
               Our Services
             </motion.h2>
             <motion.p variants={fadeUp} transition={{ duration: 0.5, delay: 0.1 }} className="text-muted-foreground max-w-lg mx-auto">
-              From full grooming to self-service wash, we have everything your pup needs to look and feel their best.
+              From award-winning grooming to our 24/7 self-service Evolution Dog Wash, we have everything your pet needs.
             </motion.p>
           </motion.div>
 
@@ -401,10 +401,11 @@ function LocationSection() {
 
                 <Card className="p-6 text-center hover-elevate" data-testid="card-hours">
                   <Clock className="w-8 h-8 text-primary mx-auto mb-3" />
-                  <h3 className="font-semibold text-foreground mb-2">Hours</h3>
-                  <p className="text-sm text-muted-foreground">Mon - Fri: 8AM - 6PM</p>
-                  <p className="text-sm text-muted-foreground">Thu - Fri: Until 7PM</p>
-                  <p className="text-sm text-muted-foreground">Sat: 9AM - 5PM</p>
+                  <h3 className="font-semibold text-foreground mb-2">Grooming Hours</h3>
+                  <p className="text-sm text-muted-foreground">Mon, Wed - Sat: 9AM - 5PM</p>
+                  <p className="text-sm text-muted-foreground">Tuesday: Closed</p>
+                  <p className="text-sm text-muted-foreground">Sunday: 9AM - 5PM</p>
+                  <p className="text-sm text-primary font-medium mt-1">Self-Service Wash: 24/7</p>
                 </Card>
 
                 <Card className="p-6 text-center hover-elevate" data-testid="card-contact">

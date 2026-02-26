@@ -67,13 +67,13 @@ function StorySection() {
             className="text-muted-foreground leading-relaxed space-y-4 max-w-2xl mx-auto text-left sm:text-center"
           >
             <p>
-              Belly Scrubs started with a simple idea: every dog deserves to feel clean, comfortable, and cared for — without the stress. Founded by a lifelong dog lover and professional groomer, our shop was designed from the ground up to be a calm, welcoming space for pets and their humans.
+              Belly scRubs started in 2010 with a simple idea: every pet deserves to feel clean, comfortable, and cared for — without the stress. Founded by Phil Schenk in Hurricane, West Virginia, our shop was built from the ground up to be a calm, welcoming space for pets and their humans.
             </p>
             <p>
-              We noticed that many grooming salons were loud, rushed, and impersonal. We wanted to do things differently. At Belly Scrubs, we take our time with every dog, using gentle techniques, premium products, and a whole lot of patience.
+              Located in Lakeview Plaza, halfway between Charleston and Huntington just off I-64 Exit 39, we've been proudly serving the Putnam County community for over 15 years. We offer award-winning professional grooming for dogs and cats, plus two state-of-the-art Evolution Dog Wash self-service units available 24/7.
             </p>
             <p>
-              Whether your pup is here for a full grooming session or you're using our self-service wash stations, the experience is the same: clean, safe, and happy. That's the Belly Scrubs promise.
+              Whether your pup is here for a full grooming session, a walk-in nail trim, or you're using our self-service wash stations at 2 AM, the experience is the same: clean, safe, and happy. That's the Belly scRubs promise — and it's why we've been voted "Best in the Valley" for 7 consecutive years.
             </p>
           </motion.div>
         </motion.div>

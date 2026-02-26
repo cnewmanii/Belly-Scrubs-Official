@@ -95,11 +95,11 @@ function generateICS(data: {
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Belly Scrubs//Booking//EN",
+    "PRODID:-//Belly scRubs//Booking//EN",
     "BEGIN:VEVENT",
     `DTSTART:${formatDT(start)}`,
     `DTEND:${formatDT(end)}`,
-    `SUMMARY:${data.serviceName} at Belly Scrubs`,
+    `SUMMARY:${data.serviceName} at Belly scRubs`,
     `DESCRIPTION:Pet: ${data.petName}`,
     `LOCATION:${businessInfo.address}, ${businessInfo.city}, ${businessInfo.state}`,
     "END:VEVENT",
