@@ -21,26 +21,72 @@ A production-ready website for "Belly Scrubs", a dog grooming and self-service p
 
 ## Project Structure
 ```
-client/src/
-  pages/          - Home, About, Calendars, Book, PetCalendarCreate, PetCalendarView, PetCalendarSuccess
-  components/     - Navbar, Footer, SoapDivider, ui/ (shadcn)
-  data/           - siteData.ts (all content: services, FAQs, team, etc.)
-  lib/providers/  - calendarProvider.ts (mock/live calendar integration)
-  hooks/          - use-toast, use-mobile
-
-server/
-  index.ts        - Express server with Stripe init
-  routes.ts       - Booking + Pet Calendar API routes
-  storage.ts      - Database storage (IStorage interface)
-  db.ts           - PostgreSQL connection via Drizzle
-  stripeClient.ts - Stripe integration via Replit connectors
-  webhookHandlers.ts - Stripe webhook processing
-
-shared/
-  schema.ts       - Drizzle schemas for users, bookings, pet_calendars, pet_calendar_months
+belly-scrubs/
+├── client/                          # Frontend (React + Vite)
+│   ├── index.html                   # HTML entry point
+│   ├── public/                      # Static assets
+│   │   └── favicon.png
+│   └── src/
+│       ├── App.tsx                  # Root component with routing
+│       ├── main.tsx                 # React entry point
+│       ├── index.css                # Global styles & theme variables
+│       ├── components/
+│       │   ├── layout/              # Site-wide layout components
+│       │   │   ├── Navbar.tsx       # Floating frosted-glass navigation bar
+│       │   │   ├── Footer.tsx       # Site footer with links & social
+│       │   │   └── SoapDivider.tsx  # Signature wavy SVG section divider
+│       │   └── ui/                  # Shadcn/ui primitives (button, card, etc.)
+│       ├── pages/                   # Route-level page components
+│       │   ├── Home.tsx             # Landing page with hero, services, gallery
+│       │   ├── About.tsx            # Story, team, facility, policies
+│       │   ├── Calendars.tsx        # Availability calendar + pet calendar promo
+│       │   ├── Book.tsx             # 5-step booking wizard
+│       │   ├── not-found.tsx        # 404 page
+│       │   └── pet-calendar/        # AI Pet Calendar Creator feature
+│       │       ├── index.ts         # Barrel exports
+│       │       ├── Create.tsx       # Upload photo & create calendar
+│       │       ├── View.tsx         # View generated images & purchase
+│       │       └── Success.tsx      # Post-purchase confirmation
+│       ├── data/
+│       │   └── siteData.ts          # All content: services, FAQs, team, etc.
+│       ├── hooks/
+│       │   ├── use-toast.ts         # Toast notification hook
+│       │   └── use-mobile.tsx       # Mobile breakpoint detection
+│       └── lib/
+│           ├── utils.ts             # Tailwind merge utility
+│           ├── queryClient.ts       # TanStack Query configuration
+│           └── providers/
+│               └── calendarProvider.ts  # Mock/live calendar data provider
+│
+├── server/                          # Backend (Express.js)
+│   ├── index.ts                     # Server entry point, Stripe init, middleware
+│   ├── routes.ts                    # Route orchestrator (imports sub-routers)
+│   ├── routes/                      # Modular API route handlers
+│   │   ├── bookings.ts              # POST/GET /api/bookings
+│   │   ├── petCalendars.ts          # Pet calendar CRUD + AI image generation
+│   │   └── stripe.ts               # Stripe status & publishable key
+│   ├── storage.ts                   # Data access layer (IStorage interface)
+│   ├── db.ts                        # PostgreSQL connection via Drizzle
+│   ├── stripeClient.ts              # Stripe client via Replit connectors
+│   ├── webhookHandlers.ts           # Stripe webhook processing
+│   ├── vite.ts                      # Vite dev server middleware (DO NOT MODIFY)
+│   └── static.ts                    # Production static file serving
+│
+├── shared/                          # Shared between frontend & backend
+│   └── schema.ts                    # Drizzle ORM schemas & Zod validation
+│
+├── drizzle.config.ts                # Drizzle ORM configuration (DO NOT MODIFY)
+├── vite.config.ts                   # Vite build configuration (DO NOT MODIFY)
+├── tailwind.config.ts               # Tailwind CSS configuration
+├── tsconfig.json                    # TypeScript configuration
+├── postcss.config.js                # PostCSS configuration
+├── components.json                  # Shadcn/ui component configuration
+├── package.json                     # Dependencies & scripts
+└── script/
+    └── build.ts                     # Production build script
 ```
 
-## Pages
+## Pages & Routes
 1. **Home** (`/`) - Hero, availability teaser, services, testimonials, gallery, location, FAQ, CTA
 2. **About** (`/about`) - Story, values, team, facility, policies & FAQ
 3. **Calendars** (`/calendars`) - Interactive calendar with mock/live toggle, time slot browser, pet calendar CTA
@@ -59,26 +105,29 @@ shared/
 - **Stripe Integration**: Payment processing for pet calendar purchases ($29.99) — NOT YET ACTIVATED. To enable, connect Stripe via the Replit Stripe connector integration. The app runs without it; calendar creation and AI generation work, but purchasing is disabled.
 
 ## API Routes
-- `POST /api/bookings` - Create a grooming booking
-- `GET /api/bookings/:id` - Get booking details
-- `POST /api/pet-calendars` - Create a pet calendar (multipart form with photo)
-- `GET /api/pet-calendars/:id` - Get calendar status and generated images
-- `POST /api/pet-calendars/:id/checkout` - Create Stripe checkout session
-- `GET /api/checkout/verify` - Verify Stripe payment
-- `GET /api/stripe/status` - Check if Stripe is enabled
-- `GET /api/stripe/publishable-key` - Get Stripe publishable key
+| Method | Endpoint | Handler File | Description |
+|--------|----------|-------------|-------------|
+| POST | `/api/bookings` | `server/routes/bookings.ts` | Create a grooming booking |
+| GET | `/api/bookings/:id` | `server/routes/bookings.ts` | Get booking details |
+| POST | `/api/pet-calendars` | `server/routes/petCalendars.ts` | Create a pet calendar (multipart form) |
+| GET | `/api/pet-calendars/:id` | `server/routes/petCalendars.ts` | Get calendar status & images |
+| POST | `/api/pet-calendars/:id/checkout` | `server/routes/petCalendars.ts` | Create Stripe checkout session |
+| GET | `/api/checkout/verify` | `server/routes/petCalendars.ts` | Verify Stripe payment |
+| GET | `/api/stripe/status` | `server/routes/stripe.ts` | Check if Stripe is enabled |
+| GET | `/api/stripe/publishable-key` | `server/routes/stripe.ts` | Get Stripe publishable key |
 
 ## Database Tables
-- `users` - User accounts
-- `bookings` - Grooming appointments
-- `pet_calendars` - Pet calendar orders (petName, petType, photoData, status)
-- `pet_calendar_months` - Individual month images (calendarId, month, holidayName, imageUrl)
+- `users` - User accounts (varchar id, username, password)
+- `bookings` - Grooming appointments (varchar id, service details, customer info, pet info)
+- `pet_calendars` - Pet calendar orders (serial id, petName, petType, photoData, status enum)
+- `pet_calendar_months` - Individual month images (serial id, calendarId FK, month, holidayName, imageUrl)
 
 ## Environment Variables
 - `DATABASE_URL` - PostgreSQL connection string
 - `SESSION_SECRET` - Session secret
-- `AI_INTEGRATIONS_OPENAI_API_KEY` - OpenAI API key (via Replit AI integrations)
-- `AI_INTEGRATIONS_OPENAI_BASE_URL` - OpenAI base URL (via Replit AI integrations)
+- `OPENAI_API_KEY` - OpenAI API key (primary, user-provided)
+- `AI_INTEGRATIONS_OPENAI_API_KEY` - OpenAI API key (fallback, via Replit AI integrations)
+- `AI_INTEGRATIONS_OPENAI_BASE_URL` - OpenAI base URL (used only with fallback key)
 - Stripe credentials managed via Replit Stripe connector
 
 ## Content Management

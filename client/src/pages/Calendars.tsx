@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SoapDivider } from "@/components/SoapDivider";
+import { SoapDivider } from "@/components/layout/SoapDivider";
 import { services } from "@/data/siteData";
 import {
   calendarProvider,

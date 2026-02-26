@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { SoapDivider } from "@/components/SoapDivider";
+import { SoapDivider } from "@/components/layout/SoapDivider";
 import { teamMembers, values, faqs, policies } from "@/data/siteData";
 import {
   Heart,

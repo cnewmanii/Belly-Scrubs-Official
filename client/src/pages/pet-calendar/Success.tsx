@@ -139,7 +139,7 @@ export default function PetCalendarSuccess() {
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             data-testid="button-create-another"
           >
-            Create a calendar for another pet \u2192
+            Create a calendar for another pet {"\u2192"}
           </button>
         </div>
       </div>

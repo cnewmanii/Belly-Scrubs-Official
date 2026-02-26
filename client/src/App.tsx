@@ -4,15 +4,15 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
 import Home from "@/pages/Home";
 import About from "@/pages/About";
 import Calendars from "@/pages/Calendars";
 import Book from "@/pages/Book";
-import PetCalendarCreate from "@/pages/PetCalendarCreate";
-import PetCalendarView from "@/pages/PetCalendarView";
-import PetCalendarSuccess from "@/pages/PetCalendarSuccess";
+import PetCalendarCreate from "@/pages/pet-calendar/Create";
+import PetCalendarView from "@/pages/pet-calendar/View";
+import PetCalendarSuccess from "@/pages/pet-calendar/Success";
 import NotFound from "@/pages/not-found";
 
 function ScrollToTop() {

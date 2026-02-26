@@ -193,7 +193,7 @@ export default function PetCalendarCreate() {
               >
                 {loading ? (
                   <>
-                    <span className="animate-spin mr-2">\u27F3</span>
+                    <span className="animate-spin mr-2">{"\u27F3"}</span>
                     Starting your calendar...
                   </>
                 ) : (
