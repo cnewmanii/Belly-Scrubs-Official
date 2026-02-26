@@ -1,4 +1,5 @@
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -138,6 +139,8 @@ function ValuesSection() {
 }
 
 function TeamSection() {
+  const [expandedMember, setExpandedMember] = useState<string | null>(null);
+
   return (
     <section className="px-6 py-20" data-testid="section-team">
       <div className="max-w-6xl mx-auto">
@@ -171,17 +174,28 @@ function TeamSection() {
         >
           {teamMembers.map((member) => (
             <motion.div key={member.name} variants={fadeUp} transition={{ duration: 0.4 }}>
-              <Card className="overflow-hidden h-full hover-elevate" data-testid={`card-team-${member.initials}`}>
+              <Card
+                className="overflow-hidden h-full group cursor-pointer hover-elevate"
+                data-testid={`card-team-${member.initials}`}
+                onClick={() => setExpandedMember(expandedMember === member.name ? null : member.name)}
+              >
                 {teamPhotos[member.name] && (
-                  <img
-                    src={teamPhotos[member.name]}
-                    alt={`${member.name} with her pets`}
-                    className="w-full h-72 object-cover object-center"
-                  />
+                  <div className="relative overflow-hidden">
+                    <img
+                      src={teamPhotos[member.name]}
+                      alt={`${member.name} with her pets`}
+                      className="w-full h-56 object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-3">
+                      <span className="text-white text-xs font-medium bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">
+                        Tap to view full photo
+                      </span>
+                    </div>
+                  </div>
                 )}
-                <div className="p-6">
-                  <h3 className="font-semibold text-xl text-foreground mb-1">{member.name}</h3>
-                  <p className="text-sm text-primary font-medium mb-4">{member.role}</p>
+                <div className="p-5">
+                  <h3 className="font-semibold text-lg text-foreground mb-0.5">{member.name}</h3>
+                  <p className="text-xs text-primary font-medium mb-3">{member.role}</p>
                   <p className="text-sm text-muted-foreground leading-relaxed">{member.bio}</p>
                 </div>
               </Card>
@@ -189,6 +203,51 @@ function TeamSection() {
           ))}
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {expandedMember && teamPhotos[expandedMember] && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+            onClick={() => setExpandedMember(null)}
+            data-testid="overlay-team-photo"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="relative max-w-lg w-full max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={teamPhotos[expandedMember]}
+                alt={`${expandedMember} full photo`}
+                className="w-full h-auto max-h-[70vh] object-contain bg-black"
+              />
+              <div className="bg-background p-4 text-center">
+                <h3 className="font-semibold text-lg text-foreground">
+                  {expandedMember}
+                </h3>
+                <p className="text-sm text-primary">
+                  {teamMembers.find((m) => m.name === expandedMember)?.role}
+                </p>
+              </div>
+              <button
+                onClick={() => setExpandedMember(null)}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center text-sm backdrop-blur-sm hover:bg-black/70 transition-colors"
+                aria-label="Close"
+                data-testid="button-close-photo"
+              >
+                &times;
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
