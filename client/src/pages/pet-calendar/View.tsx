@@ -17,12 +17,16 @@ import {
   Loader2,
   Lock,
   Download,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+
+const DAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 type CalendarData = {
   id: number;
@@ -40,25 +44,73 @@ type CalendarData = {
   }>;
 };
 
-function MonthCard({ month, petName, isUnlocked }: {
+function getCalendarYear() {
+  const now = new Date();
+  return now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear();
+}
+
+function getMonthDays(year: number, month: number) {
+  const firstDay = new Date(year, month - 1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const days: (number | null)[] = [];
+
+  for (let i = 0; i < firstDay; i++) {
+    days.push(null);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    days.push(d);
+  }
+  const totalCells = 42;
+  while (days.length < totalCells) {
+    days.push(null);
+  }
+  return days;
+}
+
+function CalendarGrid({ month, year }: { month: number; year: number }) {
+  const days = getMonthDays(year, month);
+
+  return (
+    <div className="grid grid-cols-7 gap-px">
+      {DAY_HEADERS.map((d) => (
+        <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground py-1">
+          {d}
+        </div>
+      ))}
+      {days.map((day, i) => (
+        <div
+          key={i}
+          className={`text-center text-[11px] py-0.5 ${
+            day ? "text-foreground" : ""
+          }`}
+        >
+          {day || ""}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MonthCalendarCard({ month, petName, isUnlocked, year }: {
   month: CalendarData["months"][0];
   petName: string;
   isUnlocked: boolean;
+  year: number;
 }) {
   const monthName = MONTH_NAMES[month.month - 1];
 
   return (
     <div
       data-testid={`card-month-${month.month}`}
-      className="group rounded-xl overflow-hidden border border-border bg-card"
+      className="rounded-xl overflow-hidden border border-border bg-card shadow-sm"
     >
-      <div className="relative aspect-square bg-muted overflow-hidden">
+      <div className="relative aspect-[4/3] bg-muted overflow-hidden">
         {month.generated === 1 && month.imageUrl ? (
           <>
             <img
               src={month.imageUrl}
               alt={`${petName} in ${monthName}`}
-              className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${!isUnlocked ? "filter blur-sm scale-105" : ""}`}
+              className={`w-full h-full object-cover ${!isUnlocked ? "filter blur-sm scale-105" : ""}`}
             />
             {!isUnlocked && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -71,26 +123,17 @@ function MonthCard({ month, petName, isUnlocked }: {
           </>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-muted-foreground p-4">
-            <div className="w-10 h-10 rounded-full bg-muted-foreground/10 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-            <p className="text-xs text-center text-muted-foreground">Generating...</p>
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         )}
       </div>
-      <div className="p-3">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="font-semibold text-sm text-foreground">{monthName}</p>
-            <p className="text-xs text-muted-foreground">{month.holidayName}</p>
-          </div>
-          {month.generated === 1 && (
-            <Badge variant="secondary" className="text-[10px]">
-              <CheckCircle className="w-3 h-3 mr-1" />
-              Ready
-            </Badge>
-          )}
+
+      <div className="p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-sm text-foreground">{monthName} {year}</h3>
+          <span className="text-[10px] text-muted-foreground">{month.holidayName}</span>
         </div>
+        <CalendarGrid month={month.month} year={year} />
       </div>
     </div>
   );
@@ -102,13 +145,19 @@ export default function PetCalendarView() {
   const { toast } = useToast();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [email, setEmail] = useState("");
+  const [currentPage, setCurrentPage] = useState(0);
+  const calendarYear = getCalendarYear();
 
-  const { data: calendar, isLoading } = useQuery<CalendarData>({
+  const { data: calendar, isLoading } = useQuery<CalendarData | null>({
     queryKey: ["/api/pet-calendars", id],
-    queryFn: () => fetch(`/api/pet-calendars/${id}`).then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/pet-calendars/${id}`);
+      if (!r.ok) return null;
+      return r.json();
+    },
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (!data) return 3000;
+      if (!data) return false;
       if (data.status === "generating" || data.status === "pending") return 3000;
       return false;
     },
@@ -141,12 +190,12 @@ export default function PetCalendarView() {
   if (isLoading) {
     return (
       <main className="pt-24 pb-16 px-6">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <Skeleton className="h-10 w-64 mb-4" />
           <Skeleton className="h-6 w-96 mb-8" />
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-square rounded-xl" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-[3/4] rounded-xl" />
             ))}
           </div>
         </div>
@@ -171,67 +220,98 @@ export default function PetCalendarView() {
   const isGenerating = calendar.status === "generating" || calendar.status === "pending";
   const isReady = calendar.status === "ready";
   const isPurchased = calendar.status === "purchased";
-  const progress = Math.round((calendar.generatedCount / calendar.totalMonths) * 100);
+  const sortedMonths = calendar.months.length > 0
+    ? [...calendar.months].sort((a, b) => a.month - b.month)
+    : [];
+  const progress = calendar.totalMonths > 0
+    ? Math.round((calendar.generatedCount / calendar.totalMonths) * 100)
+    : 0;
+
+  const monthsPerPage = 6;
+  const totalPages = Math.ceil(sortedMonths.length / monthsPerPage);
+  const visibleMonths = sortedMonths.slice(
+    currentPage * monthsPerPage,
+    (currentPage + 1) * monthsPerPage
+  );
 
   return (
     <main className="pt-24 pb-16 px-6">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center gap-3 mb-2">
           <Button variant="ghost" size="icon" onClick={() => setLocation("/calendars")} data-testid="button-back">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-foreground" data-testid="text-calendar-title">
-              {calendar.petName}'s Holiday Calendar
+              {calendar.petName}'s {calendarYear} Holiday Calendar
             </h1>
             <p className="text-sm text-muted-foreground">
-              {isPurchased ? "All images unlocked" : isReady ? "Ready to purchase" : `Generating images...`}
+              {isPurchased
+                ? "All images unlocked — right-click to save"
+                : isReady
+                ? "Preview your calendar below"
+                : `Generating images... ${calendar.generatedCount} of ${calendar.totalMonths}`}
             </p>
           </div>
+          {isPurchased && (
+            <Badge variant="secondary" className="text-xs">
+              <CheckCircle className="w-3 h-3 mr-1 text-green-500" />
+              Purchased
+            </Badge>
+          )}
         </div>
 
         {isGenerating && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
-              <span className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Generating {calendar.generatedCount} of {calendar.totalMonths} images
-              </span>
-              <span>{progress}%</span>
-            </div>
-            <Progress value={progress} className="h-2" />
+          <div className="mb-4 mt-2">
+            <Progress value={progress} className="h-2" data-testid="progress-view-generation" />
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {calendar.months.length > 0
-            ? calendar.months.map((month) => (
-                <MonthCard
-                  key={month.id}
-                  month={month}
-                  petName={calendar.petName}
-                  isUnlocked={isPurchased}
-                />
-              ))
-            : Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="rounded-xl overflow-hidden border border-border bg-card">
-                  <div className="aspect-square bg-muted flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                  </div>
-                  <div className="p-3">
-                    <Skeleton className="h-4 w-20 mb-1" />
-                    <Skeleton className="h-3 w-16" />
-                  </div>
-                </div>
-              ))
-          }
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+          {visibleMonths.map((month) => (
+            <MonthCalendarCard
+              key={month.id}
+              month={month}
+              petName={calendar.petName}
+              isUnlocked={isPurchased}
+              year={calendarYear}
+            />
+          ))}
         </div>
 
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 mt-8">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 0}
+              onClick={() => setCurrentPage((p) => p - 1)}
+              data-testid="button-prev-page"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {currentPage === 0 ? "Jan — Jun" : "Jul — Dec"}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === totalPages - 1}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              data-testid="button-next-page"
+            >
+              Next
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        )}
+
         {isReady && (
-          <div className="max-w-md mx-auto mt-8">
+          <div className="max-w-md mx-auto mt-10">
             <Card className="p-6 space-y-4">
               <div className="text-center">
-                <h3 className="text-lg font-bold text-foreground">All images ready!</h3>
+                <h3 className="text-lg font-bold text-foreground">Love your calendar?</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   Purchase to unlock all 12 high-resolution images.
                 </p>
@@ -272,16 +352,8 @@ export default function PetCalendarView() {
           </div>
         )}
 
-        {isGenerating && (
-          <div className="text-center mt-6">
-            <p className="text-sm text-muted-foreground">
-              Hang tight! We're using AI to create each unique image. The page updates automatically.
-            </p>
-          </div>
-        )}
-
         {isPurchased && (
-          <div className="max-w-md mx-auto mt-8">
+          <div className="max-w-md mx-auto mt-10">
             <Card className="p-6 text-center space-y-4">
               <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto">
                 <Download className="w-7 h-7 text-green-500" />

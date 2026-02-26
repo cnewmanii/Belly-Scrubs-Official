@@ -1,11 +1,12 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Upload, Dog, Cat, Sparkles, ChevronRight } from "lucide-react";
+import { Upload, Dog, Cat, Sparkles, ChevronRight, Loader2, PawPrint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 
 const MONTHS = [
@@ -23,6 +24,15 @@ const MONTHS = [
   { month: "Dec", holiday: "Christmas", icon: "\u{1F384}" },
 ];
 
+const GENERATING_MESSAGES = [
+  "Warming up the AI brushes...",
+  "Studying your pet's adorable features...",
+  "Painting holiday scenes...",
+  "Adding festive details...",
+  "Perfecting each month's theme...",
+  "Almost there, making it purrfect...",
+];
+
 export default function PetCalendarCreate() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -33,6 +43,48 @@ export default function PetCalendarCreate() {
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const [generating, setGenerating] = useState(false);
+  const [calendarId, setCalendarId] = useState<number | null>(null);
+  const [generatedCount, setGeneratedCount] = useState(0);
+  const [messageIndex, setMessageIndex] = useState(0);
+  const [genError, setGenError] = useState(false);
+  const pollFailCount = useRef(0);
+
+  useEffect(() => {
+    if (!generating || !calendarId) return;
+
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/pet-calendars/${calendarId}`);
+        if (!res.ok) throw new Error("Poll failed");
+        const data = await res.json();
+        pollFailCount.current = 0;
+        setGeneratedCount(data.generatedCount || 0);
+
+        if (data.status === "ready" || data.status === "purchased") {
+          clearInterval(poll);
+          setLocation(`/pet-calendar/${calendarId}`);
+        }
+      } catch {
+        pollFailCount.current += 1;
+        if (pollFailCount.current >= 5) {
+          clearInterval(poll);
+          setGenError(true);
+        }
+      }
+    }, 3000);
+
+    return () => clearInterval(poll);
+  }, [generating, calendarId, setLocation]);
+
+  useEffect(() => {
+    if (!generating) return;
+    const interval = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % GENERATING_MESSAGES.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [generating]);
 
   const handleFile = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -76,12 +128,104 @@ export default function PetCalendarCreate() {
       const res = await fetch("/api/pet-calendars", { method: "POST", body: formData });
       if (!res.ok) throw new Error("Failed to create calendar");
       const data = await res.json();
-      setLocation(`/pet-calendar/${data.id}`);
+      setCalendarId(data.id);
+      setGenerating(true);
     } catch {
       toast({ title: "Something went wrong. Please try again.", variant: "destructive" });
       setLoading(false);
     }
   };
+
+  if (generating) {
+    const progress = Math.round((generatedCount / 12) * 100);
+    return (
+      <main className="pt-24 pb-16">
+        <section className="px-6">
+          <div className="max-w-lg mx-auto text-center">
+            <div className="mb-8">
+              <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6 relative">
+                <PawPrint className="w-12 h-12 text-primary animate-pulse" />
+                <div className="absolute inset-0 rounded-full border-4 border-primary/20 animate-ping" />
+              </div>
+              <h1 className="text-2xl font-bold text-foreground mb-2" data-testid="text-generating-title">
+                Creating {petName}'s Calendar
+              </h1>
+              <p className="text-muted-foreground text-sm mb-6" data-testid="text-generating-message">
+                {GENERATING_MESSAGES[messageIndex]}
+              </p>
+            </div>
+
+            <Card className="p-6 space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {generatedCount} of 12 images generated
+                </span>
+                <span className="font-medium text-foreground">{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-3" data-testid="progress-generation" />
+
+              <div className="grid grid-cols-6 gap-2 pt-2">
+                {MONTHS.map((m, i) => (
+                  <div
+                    key={m.month}
+                    className={`flex flex-col items-center p-2 rounded-lg transition-all ${
+                      i < generatedCount
+                        ? "bg-primary/10 text-primary"
+                        : i === generatedCount
+                        ? "bg-muted animate-pulse"
+                        : "bg-muted/50 text-muted-foreground"
+                    }`}
+                    data-testid={`status-month-${i + 1}`}
+                  >
+                    <span className="text-base">{m.icon}</span>
+                    <span className="text-[10px] font-medium mt-1">{m.month}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {genError ? (
+              <Card className="p-5 mt-6 space-y-3 border-destructive/30">
+                <p className="text-sm text-destructive font-medium">
+                  We lost connection while generating your calendar.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    setGenError(false);
+                    pollFailCount.current = 0;
+                    setGenerating(false);
+                    setTimeout(() => setGenerating(true), 100);
+                  }}
+                  data-testid="button-retry-generation"
+                >
+                  Retry
+                </Button>
+                {calendarId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setLocation(`/pet-calendar/${calendarId}`)}
+                    data-testid="button-view-partial"
+                  >
+                    View calendar anyway
+                  </Button>
+                )}
+              </Card>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-6">
+                This usually takes 2-4 minutes. Please don't close this page.
+              </p>
+            )}
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="pt-24 pb-16">
@@ -193,7 +337,7 @@ export default function PetCalendarCreate() {
               >
                 {loading ? (
                   <>
-                    <span className="animate-spin mr-2">{"\u27F3"}</span>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                     Starting your calendar...
                   </>
                 ) : (

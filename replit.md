@@ -91,8 +91,8 @@ belly-scrubs/
 2. **About** (`/about`) - Story, values, team, facility, policies & FAQ
 3. **Calendars** (`/calendars`) - Interactive calendar with mock/live toggle, time slot browser, pet calendar CTA
 4. **Book** (`/book`) - 5-step booking flow: Service > Add-ons > Date/Time > Info > Confirm
-5. **Pet Calendar Create** (`/pet-calendar/create`) - Upload pet photo, select type, create AI calendar
-6. **Pet Calendar View** (`/pet-calendar/:id`) - View generated images, purchase via Stripe
+5. **Pet Calendar Create** (`/pet-calendar/create`) - Upload pet photo, select type, create AI calendar. Stays on page with progress animation while AI generates all 12 images, then redirects to View once complete.
+6. **Pet Calendar View** (`/pet-calendar/:id`) - Calendar layout with AI photo on top, calendar grid on bottom for each month. Paginated (Jan-Jun / Jul-Dec). Purchase via Stripe to unlock high-res images.
 7. **Pet Calendar Success** (`/pet-calendar/success`) - Checkout success confirmation
 
 ## Key Features
@@ -101,7 +101,7 @@ belly-scrubs/
 - **Calendar Provider Pattern**: Interface supporting mock and live data sources
 - **ICS Generation**: Client-side calendar file download after booking
 - **Booking API**: POST /api/bookings with Zod validation
-- **Pet Calendar Creator**: AI-generated holiday-themed pet images using OpenAI gpt-image-1
+- **Pet Calendar Creator**: AI-generated holiday-themed pet images using OpenAI gpt-image-1, with calendar layout (photo + month grid)
 - **Stripe Integration**: Payment processing for pet calendar purchases ($29.99) — NOT YET ACTIVATED. To enable, connect Stripe via the Replit Stripe connector integration. The app runs without it; calendar creation and AI generation work, but purchasing is disabled.
 
 ## API Routes
