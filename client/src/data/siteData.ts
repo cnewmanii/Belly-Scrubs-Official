@@ -177,7 +177,7 @@ export const businessInfo = {
   name: "Belly scRubs",
   tagline: "Where Every Pup Leaves Happy",
   phone: "(304) 760-8989",
-  email: "bellyscrubs@gmail.com",
+  email: "info@bellyscrubs.com",
   address: "119 State Route 34, Suite 1",
   city: "Hurricane",
   state: "WV",
