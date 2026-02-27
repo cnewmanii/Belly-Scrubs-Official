@@ -150,7 +150,7 @@ export default function Book() {
     switch (step) {
       case 1: return !!selectedService && (!hasSizeOptions || !!selectedSize);
       case 2: return true;
-      case 3: return !!selectedDate;
+      case 3: return true;
       case 4: return form.formState.isValid;
       case 5: return true;
       default: return false;
@@ -166,7 +166,7 @@ export default function Book() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedService || !selectedDate) return;
+    if (!selectedService) return;
     setSubmitting(true);
 
     const values = form.getValues();
@@ -177,7 +177,7 @@ export default function Book() {
       serviceId: selectedService.id,
       serviceName: selectedService.name + (sizeInfo ? ` - ${sizeInfo}` : ""),
       addOns: selectedAddOns.map((a) => a.name),
-      date: selectedDate.toISOString().split("T")[0],
+      date: selectedDate ? selectedDate.toISOString().split("T")[0] : null,
       time: null,
       customerName: values.customerName,
       customerPhone: values.customerPhone,
@@ -246,12 +246,14 @@ export default function Book() {
                   <span className="font-medium text-foreground text-right">{selectedAddOns.map((a) => a.name).join(", ")}</span>
                 </div>
               )}
-              <div className="flex justify-between gap-2">
-                <span className="text-muted-foreground">Date</span>
-                <span className="font-medium text-foreground" data-testid="text-confirm-date">
-                  {selectedDate?.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-                </span>
-              </div>
+              {selectedDate && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Preferred Date</span>
+                  <span className="font-medium text-foreground" data-testid="text-confirm-date">
+                    {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between gap-2">
                 <span className="text-muted-foreground">Pet</span>
                 <span className="font-medium text-foreground" data-testid="text-confirm-pet">{form.getValues().petName}</span>
@@ -268,10 +270,10 @@ export default function Book() {
               variant="outline"
               className="gap-2"
               onClick={() => {
-                if (selectedService && selectedDate) {
+                if (selectedService) {
                   generateICS({
                     serviceName: selectedService.name,
-                    date: selectedDate.toISOString().split("T")[0],
+                    date: selectedDate ? selectedDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
                     time: "09:00",
                     duration: selectedService.duration,
                     petName: form.getValues().petName,
@@ -707,10 +709,16 @@ export default function Book() {
 
                       <div className="p-4 rounded-xl bg-muted/50">
                         <h3 className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">Preferred Date</h3>
-                        <p className="font-medium text-foreground">
-                          {selectedDate?.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">Time to be confirmed</p>
+                        {selectedDate ? (
+                          <>
+                            <p className="font-medium text-foreground">
+                              {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">Time to be confirmed</p>
+                          </>
+                        ) : (
+                          <p className="text-muted-foreground">No preference — we'll reach out to schedule</p>
+                        )}
                       </div>
 
                       <div className="p-4 rounded-xl bg-muted/50">
