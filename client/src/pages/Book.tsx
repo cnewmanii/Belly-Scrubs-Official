@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Form,
   FormControl,
@@ -19,10 +18,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { services, addOns, businessInfo } from "@/data/siteData";
-import {
-  calendarProvider,
-  type TimeSlot,
-} from "@/lib/providers/calendarProvider";
 import {
   Scissors,
   Droplets,
@@ -64,17 +59,11 @@ type CustomerForm = z.infer<typeof customerSchema>;
 const STEPS = [
   { id: 1, title: "Service", icon: Scissors },
   { id: 2, title: "Add-ons", icon: Sparkles },
-  { id: 3, title: "Date & Time", icon: Calendar },
+  { id: 3, title: "Date", icon: Calendar },
   { id: 4, title: "Your Info", icon: User },
   { id: 5, title: "Confirm", icon: CreditCard },
 ];
 
-function formatTimeDisplay(time: string) {
-  const [h, m] = time.split(":").map(Number);
-  const period = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${m.toString().padStart(2, "0")} ${period}`;
-}
 
 function generateICS(data: {
   serviceName: string;
@@ -123,9 +112,6 @@ export default function Book() {
   const [selectedHairType, setSelectedHairType] = useState<"short" | "long">("short");
   const [selectedAddOns, setSelectedAddOns] = useState<AddOn[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-  const [slots, setSlots] = useState<TimeSlot[]>([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
@@ -157,21 +143,6 @@ export default function Book() {
 
   const [calMonth, setCalMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
 
-  const loadSlots = useCallback(async (date: Date) => {
-    setSlotsLoading(true);
-    try {
-      const result = await calendarProvider.listAvailability(date);
-      setSlots(result);
-    } catch {
-      setSlots([]);
-    } finally {
-      setSlotsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (selectedDate) loadSlots(selectedDate);
-  }, [selectedDate, loadSlots]);
 
   const totalPrice = servicePrice + selectedAddOns.reduce((sum, a) => sum + a.price, 0);
 
@@ -179,7 +150,7 @@ export default function Book() {
     switch (step) {
       case 1: return !!selectedService && (!hasSizeOptions || !!selectedSize);
       case 2: return true;
-      case 3: return !!selectedSlot && !!selectedDate;
+      case 3: return !!selectedDate;
       case 4: return form.formState.isValid;
       case 5: return true;
       default: return false;
@@ -195,7 +166,7 @@ export default function Book() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedService || !selectedDate || !selectedSlot) return;
+    if (!selectedService || !selectedDate) return;
     setSubmitting(true);
 
     const values = form.getValues();
@@ -207,7 +178,7 @@ export default function Book() {
       serviceName: selectedService.name + (sizeInfo ? ` - ${sizeInfo}` : ""),
       addOns: selectedAddOns.map((a) => a.name),
       date: selectedDate.toISOString().split("T")[0],
-      time: selectedSlot.startTime,
+      time: null,
       customerName: values.customerName,
       customerPhone: values.customerPhone,
       customerEmail: values.customerEmail,
@@ -282,12 +253,6 @@ export default function Book() {
                 </span>
               </div>
               <div className="flex justify-between gap-2">
-                <span className="text-muted-foreground">Time</span>
-                <span className="font-medium text-foreground" data-testid="text-confirm-time">
-                  {selectedSlot && formatTimeDisplay(selectedSlot.startTime)}
-                </span>
-              </div>
-              <div className="flex justify-between gap-2">
                 <span className="text-muted-foreground">Pet</span>
                 <span className="font-medium text-foreground" data-testid="text-confirm-pet">{form.getValues().petName}</span>
               </div>
@@ -303,11 +268,11 @@ export default function Book() {
               variant="outline"
               className="gap-2"
               onClick={() => {
-                if (selectedService && selectedDate && selectedSlot) {
+                if (selectedService && selectedDate) {
                   generateICS({
                     serviceName: selectedService.name,
                     date: selectedDate.toISOString().split("T")[0],
-                    time: selectedSlot.startTime,
+                    time: "09:00",
                     duration: selectedService.duration,
                     petName: form.getValues().petName,
                   });
@@ -325,7 +290,6 @@ export default function Book() {
                 setSelectedService(null);
                 setSelectedAddOns([]);
                 setSelectedDate(null);
-                setSelectedSlot(null);
                 form.reset();
               }}
               data-testid="button-new-booking"
@@ -541,7 +505,7 @@ export default function Book() {
 
                 {step === 3 && (
                   <Card className="p-6" data-testid="step-datetime">
-                    <h2 className="font-semibold text-lg text-foreground mb-5">Choose Date & Time</h2>
+                    <h2 className="font-semibold text-lg text-foreground mb-5">Choose a Preferred Date</h2>
 
                     <div className="mb-6">
                       <div className="flex items-center justify-between gap-2 mb-3">
@@ -573,7 +537,7 @@ export default function Book() {
                             <button
                               key={day.toISOString()}
                               disabled={isPast || isSunday}
-                              onClick={() => { setSelectedDate(new Date(day)); setSelectedSlot(null); }}
+                              onClick={() => { setSelectedDate(new Date(day)); }}
                               className={`w-full aspect-square flex items-center justify-center text-sm rounded-lg transition-all ${
                                 isSelected
                                   ? "bg-primary text-primary-foreground font-semibold"
@@ -593,35 +557,13 @@ export default function Book() {
                     </div>
 
                     {selectedDate && (
-                      <div>
-                        <h3 className="font-medium text-sm text-foreground mb-3">
-                          Available Times - {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
-                        </h3>
-                        {slotsLoading ? (
-                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                            {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 rounded-lg" />)}
-                          </div>
-                        ) : slots.filter((s) => s.available).length === 0 ? (
-                          <p className="text-sm text-muted-foreground py-4">No available slots for this date.</p>
-                        ) : (
-                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                            {slots.filter((s) => s.available).map((slot) => (
-                              <button
-                                key={slot.id}
-                                onClick={() => setSelectedSlot(slot)}
-                                className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                                  selectedSlot?.id === slot.id
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-background border border-border hover-elevate"
-                                }`}
-                                data-testid={`button-book-slot-${slot.id}`}
-                              >
-                                {formatTimeDisplay(slot.startTime)}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <p className="text-sm text-muted-foreground mt-4">
+                        We'll confirm your appointment time for{" "}
+                        <span className="font-medium text-foreground">
+                          {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                        </span>{" "}
+                        when we reach out to you.
+                      </p>
                     )}
                   </Card>
                 )}
@@ -764,13 +706,11 @@ export default function Book() {
                       )}
 
                       <div className="p-4 rounded-xl bg-muted/50">
-                        <h3 className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">Appointment</h3>
+                        <h3 className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">Preferred Date</h3>
                         <p className="font-medium text-foreground">
                           {selectedDate?.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                         </p>
-                        <p className="text-muted-foreground">
-                          {selectedSlot && formatTimeDisplay(selectedSlot.startTime)}
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Time to be confirmed</p>
                       </div>
 
                       <div className="p-4 rounded-xl bg-muted/50">
@@ -888,12 +828,6 @@ export default function Book() {
                       </div>
                     )}
 
-                    {selectedSlot && (
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Time</span>
-                        <span className="text-foreground">{formatTimeDisplay(selectedSlot.startTime)}</span>
-                      </div>
-                    )}
 
                     <div className="border-t border-border/50 pt-3 flex justify-between gap-2">
                       <span className="font-semibold text-foreground">Total</span>
