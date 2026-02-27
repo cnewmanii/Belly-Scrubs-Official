@@ -1,0 +1,9 @@
+node_modules
+.git
+.replit
+replit.md
+.config
+.local
+*.md
+.env
+dist
