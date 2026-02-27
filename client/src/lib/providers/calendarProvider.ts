@@ -11,55 +11,70 @@ export interface CalendarProvider {
   releaseHold(holdId: string): Promise<void>;
 }
 
-function generateTimeSlots(date: Date): TimeSlot[] {
-  const slots: TimeSlot[] = [];
-  const dayOfWeek = date.getDay();
-
-  if (dayOfWeek === 0) return slots;
-
-  const startHour = dayOfWeek === 6 ? 9 : 8;
-  const endHour = dayOfWeek === 4 || dayOfWeek === 5 ? 19 : 18;
-
-  const seed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
-
-  for (let hour = startHour; hour < endHour; hour++) {
-    for (const minutes of [0, 30]) {
-      const slotId = `${date.toISOString().split("T")[0]}-${hour.toString().padStart(2, "0")}${minutes.toString().padStart(2, "0")}`;
-      const startTime = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-      const endMinutes = minutes + 30;
-      const endHourCalc = endMinutes >= 60 ? hour + 1 : hour;
-      const endMin = endMinutes >= 60 ? endMinutes - 60 : endMinutes;
-      const endTime = `${endHourCalc.toString().padStart(2, "0")}:${endMin.toString().padStart(2, "0")}`;
-
-      const hashVal = ((seed + hour * 60 + minutes) * 2654435761) >>> 0;
-      const available = (hashVal % 100) > 30;
-
-      slots.push({ id: slotId, startTime, endTime, available });
-    }
-  }
-
-  return slots;
-}
-
-export class MockCalendarProvider implements CalendarProvider {
+/**
+ * API-backed calendar provider that fetches real availability
+ * from the server (which checks Square for conflicts).
+ * Fixed slots: 9am, 11am, 1pm, 3pm.
+ */
+export class ApiCalendarProvider implements CalendarProvider {
   private holds: Map<string, string> = new Map();
 
   async listAvailability(date: Date): Promise<TimeSlot[]> {
-    await new Promise((r) => setTimeout(r, 300 + Math.random() * 400));
-    return generateTimeSlots(date);
+    const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD
+    try {
+      const response = await fetch(`/api/availability?date=${dateStr}`);
+      if (!response.ok) {
+        throw new Error(`Availability API returned ${response.status}`);
+      }
+      const data = await response.json();
+      return data.slots || [];
+    } catch (error) {
+      console.error("Failed to fetch availability:", error);
+      // Fallback: return the 4 fixed slots as all available
+      // so bookings aren't blocked by an API outage
+      return getFallbackSlots(date);
+    }
   }
 
   async createHold(slotId: string): Promise<{ holdId: string }> {
-    await new Promise((r) => setTimeout(r, 200));
+    // Holds are handled server-side via the booking process
     const holdId = `hold-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     this.holds.set(holdId, slotId);
     return { holdId };
   }
 
   async releaseHold(holdId: string): Promise<void> {
-    await new Promise((r) => setTimeout(r, 100));
     this.holds.delete(holdId);
   }
 }
 
-export const calendarProvider: CalendarProvider = new MockCalendarProvider();
+/**
+ * Fallback slots when the API is unreachable.
+ * Returns the 4 fixed time slots for non-Sunday, non-past dates.
+ */
+function getFallbackSlots(date: Date): TimeSlot[] {
+  const dayOfWeek = date.getDay();
+  if (dayOfWeek === 0) return []; // Sunday closed
+
+  const dateStr = date.toISOString().split("T")[0];
+
+  // Business hours
+  const open = dayOfWeek === 6 ? 10 : 9;
+  const close = dayOfWeek === 6 ? 18 : 17;
+
+  const fixedTimes = ["09:00", "11:00", "13:00", "15:00"];
+
+  return fixedTimes
+    .filter((time) => {
+      const hour = parseInt(time.split(":")[0], 10);
+      return hour >= open && (hour + 2) <= close;
+    })
+    .map((time) => ({
+      id: `${dateStr}-${time.replace(":", "")}`,
+      startTime: time,
+      endTime: `${(parseInt(time.split(":")[0], 10) + 2).toString().padStart(2, "0")}:00`,
+      available: true,
+    }));
+}
+
+export const calendarProvider: CalendarProvider = new ApiCalendarProvider();

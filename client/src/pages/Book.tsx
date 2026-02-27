@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Form,
   FormControl,
@@ -18,6 +19,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { services, addOns, businessInfo } from "@/data/siteData";
+import {
+  calendarProvider,
+  type TimeSlot,
+} from "@/lib/providers/calendarProvider";
 import {
   Scissors,
   Droplets,
@@ -35,9 +40,13 @@ import {
   Dog,
   FileText,
   CreditCard,
+  Camera,
   Download,
   ArrowRight,
   CheckCircle2,
+  Upload,
+  X,
+  AlertCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -59,11 +68,18 @@ type CustomerForm = z.infer<typeof customerSchema>;
 const STEPS = [
   { id: 1, title: "Service", icon: Scissors },
   { id: 2, title: "Add-ons", icon: Sparkles },
-  { id: 3, title: "Date", icon: Calendar },
+  { id: 3, title: "Date & Time", icon: Calendar },
   { id: 4, title: "Your Info", icon: User },
-  { id: 5, title: "Confirm", icon: CreditCard },
+  { id: 5, title: "Pet Photo", icon: Camera },
+  { id: 6, title: "Confirm", icon: CreditCard },
 ];
 
+function formatTimeDisplay(time: string) {
+  const [h, m] = time.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return `${hour}:${m.toString().padStart(2, "0")} ${period}`;
+}
 
 function generateICS(data: {
   serviceName: string;
@@ -112,9 +128,31 @@ export default function Book() {
   const [selectedHairType, setSelectedHairType] = useState<"short" | "long">("short");
   const [selectedAddOns, setSelectedAddOns] = useState<AddOn[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [slots, setSlots] = useState<TimeSlot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+
+  // Photo upload state
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoValidating, setPhotoValidating] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoValidated, setPhotoValidated] = useState(false);
+  const [tempPhotoFile, setTempPhotoFile] = useState<string | null>(null);
+  const [photoDate, setPhotoDate] = useState<string | null>(null);
+
+  // Booking config (deposit on/off)
+  const [bookingConfig, setBookingConfig] = useState<{ depositEnabled: boolean; depositAmount: number } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/bookings/config")
+      .then((r) => r.json())
+      .then(setBookingConfig)
+      .catch(() => setBookingConfig({ depositEnabled: false, depositAmount: 2500 }));
+  }, []);
 
   const hasSizeOptions = selectedService && "sizeOptions" in selectedService && selectedService.sizeOptions;
 
@@ -143,6 +181,21 @@ export default function Book() {
 
   const [calMonth, setCalMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
 
+  const loadSlots = useCallback(async (date: Date) => {
+    setSlotsLoading(true);
+    try {
+      const result = await calendarProvider.listAvailability(date);
+      setSlots(result);
+    } catch {
+      setSlots([]);
+    } finally {
+      setSlotsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedDate) loadSlots(selectedDate);
+  }, [selectedDate, loadSlots]);
 
   const totalPrice = servicePrice + selectedAddOns.reduce((sum, a) => sum + a.price, 0);
 
@@ -150,15 +203,16 @@ export default function Book() {
     switch (step) {
       case 1: return !!selectedService && (!hasSizeOptions || !!selectedSize);
       case 2: return true;
-      case 3: return true;
+      case 3: return !!selectedSlot && !!selectedDate;
       case 4: return form.formState.isValid;
-      case 5: return true;
+      case 5: return photoValidated && !!tempPhotoFile;
+      case 6: return true;
       default: return false;
     }
   };
 
   const handleNext = () => {
-    if (step < 5) setStep(step + 1);
+    if (step < 6) setStep(step + 1);
   };
 
   const handleBack = () => {
@@ -166,7 +220,7 @@ export default function Book() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedService) return;
+    if (!selectedService || !selectedDate || !selectedSlot) return;
     setSubmitting(true);
 
     const values = form.getValues();
@@ -177,8 +231,8 @@ export default function Book() {
       serviceId: selectedService.id,
       serviceName: selectedService.name + (sizeInfo ? ` - ${sizeInfo}` : ""),
       addOns: selectedAddOns.map((a) => a.name),
-      date: selectedDate ? selectedDate.toISOString().split("T")[0] : null,
-      time: null,
+      date: selectedDate.toISOString().split("T")[0],
+      time: selectedSlot.startTime,
       customerName: values.customerName,
       customerPhone: values.customerPhone,
       customerEmail: values.customerEmail,
@@ -189,16 +243,73 @@ export default function Book() {
     };
 
     try {
-      const res = await apiRequest("POST", "/api/bookings", bookingData);
+      const formData = new FormData();
+      Object.entries(bookingData).forEach(([key, val]) => {
+        if (val !== null && val !== undefined) {
+          formData.append(key, Array.isArray(val) ? JSON.stringify(val) : String(val));
+        }
+      });
+      if (tempPhotoFile) formData.append("tempPhotoFile", tempPhotoFile);
+      if (photoDate) formData.append("photoDate", photoDate);
+
+      const res = await fetch("/api/bookings", { method: "POST", body: formData });
       const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Booking failed");
       setBookingId(result.id);
+
+      // If Stripe checkout URL is returned, redirect to pay deposit
+      if (result.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+        return;
+      }
+
+      // No deposit — show confirmation directly
       setConfirmed(true);
-      toast({ title: "Booking Confirmed!", description: `Your appointment has been booked.` });
-    } catch {
-      toast({ title: "Booking Error", description: "Something went wrong. Please try again.", variant: "destructive" });
+      toast({ title: "Booking Submitted!", description: "We'll review your booking and confirm shortly." });
+    } catch (err: any) {
+      toast({ title: "Booking Error", description: err.message || "Something went wrong. Please try again.", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handlePhotoUpload = async (file: File) => {
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    setPhotoError(null);
+    setPhotoValidated(false);
+    setTempPhotoFile(null);
+    setPhotoDate(null);
+    setPhotoValidating(true);
+
+    const fd = new FormData();
+    fd.append("photo", file);
+
+    try {
+      const res = await fetch("/api/bookings/validate-photo", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.valid) {
+        setPhotoValidated(true);
+        setTempPhotoFile(data.tempFile);
+        setPhotoDate(data.photoDate || null);
+      } else {
+        setPhotoError(data.reason || "Photo could not be validated. Please try another.");
+      }
+    } catch {
+      setPhotoError("Failed to validate photo. Please try again.");
+    } finally {
+      setPhotoValidating(false);
+    }
+  };
+
+  const clearPhoto = () => {
+    setPhotoFile(null);
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(null);
+    setPhotoError(null);
+    setPhotoValidated(false);
+    setTempPhotoFile(null);
+    setPhotoDate(null);
   };
 
   const toggleAddOn = (addon: AddOn) => {
@@ -229,9 +340,9 @@ export default function Book() {
           <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-10 h-10 text-green-600 dark:text-green-400" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground mb-3" data-testid="text-confirmation-title">Booking Confirmed!</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-3" data-testid="text-confirmation-title">Booking Submitted!</h1>
           <p className="text-muted-foreground mb-8">
-            We've reserved your spot. A confirmation email will be sent to {form.getValues().customerEmail}.
+            Your booking has been submitted for review. Our staff will call to confirm your appointment. A quote has been sent to {form.getValues().customerEmail}.
           </p>
 
           <Card className="p-6 text-left mb-6">
@@ -246,14 +357,18 @@ export default function Book() {
                   <span className="font-medium text-foreground text-right">{selectedAddOns.map((a) => a.name).join(", ")}</span>
                 </div>
               )}
-              {selectedDate && (
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">Preferred Date</span>
-                  <span className="font-medium text-foreground" data-testid="text-confirm-date">
-                    {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-                  </span>
-                </div>
-              )}
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Date</span>
+                <span className="font-medium text-foreground" data-testid="text-confirm-date">
+                  {selectedDate?.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">Time</span>
+                <span className="font-medium text-foreground" data-testid="text-confirm-time">
+                  {selectedSlot && formatTimeDisplay(selectedSlot.startTime)}
+                </span>
+              </div>
               <div className="flex justify-between gap-2">
                 <span className="text-muted-foreground">Pet</span>
                 <span className="font-medium text-foreground" data-testid="text-confirm-pet">{form.getValues().petName}</span>
@@ -270,11 +385,11 @@ export default function Book() {
               variant="outline"
               className="gap-2"
               onClick={() => {
-                if (selectedService) {
+                if (selectedService && selectedDate && selectedSlot) {
                   generateICS({
                     serviceName: selectedService.name,
-                    date: selectedDate ? selectedDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-                    time: "09:00",
+                    date: selectedDate.toISOString().split("T")[0],
+                    time: selectedSlot.startTime,
                     duration: selectedService.duration,
                     petName: form.getValues().petName,
                   });
@@ -292,6 +407,8 @@ export default function Book() {
                 setSelectedService(null);
                 setSelectedAddOns([]);
                 setSelectedDate(null);
+                setSelectedSlot(null);
+                clearPhoto();
                 form.reset();
               }}
               data-testid="button-new-booking"
@@ -507,7 +624,7 @@ export default function Book() {
 
                 {step === 3 && (
                   <Card className="p-6" data-testid="step-datetime">
-                    <h2 className="font-semibold text-lg text-foreground mb-5">Choose a Preferred Date</h2>
+                    <h2 className="font-semibold text-lg text-foreground mb-5">Choose Date & Time</h2>
 
                     <div className="mb-6">
                       <div className="flex items-center justify-between gap-2 mb-3">
@@ -539,7 +656,7 @@ export default function Book() {
                             <button
                               key={day.toISOString()}
                               disabled={isPast || isSunday}
-                              onClick={() => { setSelectedDate(new Date(day)); }}
+                              onClick={() => { setSelectedDate(new Date(day)); setSelectedSlot(null); }}
                               className={`w-full aspect-square flex items-center justify-center text-sm rounded-lg transition-all ${
                                 isSelected
                                   ? "bg-primary text-primary-foreground font-semibold"
@@ -559,13 +676,35 @@ export default function Book() {
                     </div>
 
                     {selectedDate && (
-                      <p className="text-sm text-muted-foreground mt-4">
-                        We'll confirm your appointment time for{" "}
-                        <span className="font-medium text-foreground">
-                          {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-                        </span>{" "}
-                        when we reach out to you.
-                      </p>
+                      <div>
+                        <h3 className="font-medium text-sm text-foreground mb-3">
+                          Available Times - {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+                        </h3>
+                        {slotsLoading ? (
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                            {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 rounded-lg" />)}
+                          </div>
+                        ) : slots.filter((s) => s.available).length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-4">No available slots for this date.</p>
+                        ) : (
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                            {slots.filter((s) => s.available).map((slot) => (
+                              <button
+                                key={slot.id}
+                                onClick={() => setSelectedSlot(slot)}
+                                className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                  selectedSlot?.id === slot.id
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-background border border-border hover-elevate"
+                                }`}
+                                data-testid={`button-book-slot-${slot.id}`}
+                              >
+                                {formatTimeDisplay(slot.startTime)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </Card>
                 )}
@@ -682,6 +821,77 @@ export default function Book() {
                 )}
 
                 {step === 5 && (
+                  <Card className="p-6" data-testid="step-photo">
+                    <h2 className="font-semibold text-lg text-foreground mb-2">Upload a Current Photo</h2>
+                    <p className="text-sm text-muted-foreground mb-5">
+                      Please upload a recent photo of your pet (taken within the last 7 days). This helps our groomers prepare for your appointment.
+                    </p>
+
+                    {!photoFile ? (
+                      <label className="block cursor-pointer">
+                        <div className="border-2 border-dashed border-border rounded-xl p-10 text-center hover:border-primary/50 transition-colors">
+                          <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                          <p className="font-medium text-foreground mb-1">Tap to upload a photo</p>
+                          <p className="text-xs text-muted-foreground">JPG, PNG, or HEIC — must be taken within the last 7 days</p>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handlePhotoUpload(f);
+                          }}
+                        />
+                      </label>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="relative rounded-xl overflow-hidden border border-border">
+                          <img
+                            src={photoPreview!}
+                            alt="Pet photo preview"
+                            className="w-full max-h-72 object-cover"
+                          />
+                          <button
+                            onClick={clearPhoto}
+                            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors"
+                          >
+                            <X className="w-4 h-4 text-white" />
+                          </button>
+                        </div>
+
+                        {photoValidating && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            Checking photo date...
+                          </div>
+                        )}
+
+                        {photoError && (
+                          <div className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="font-medium">Photo Not Accepted</p>
+                              <p className="text-xs mt-0.5">{photoError}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {photoValidated && (
+                          <div className="flex items-start gap-2 text-sm text-green-600 dark:text-green-400 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                            <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="font-medium">Photo Accepted</p>
+                              {photoDate && <p className="text-xs mt-0.5">Taken: {new Date(photoDate).toLocaleDateString()}</p>}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </Card>
+                )}
+
+                {step === 6 && (
                   <Card className="p-6" data-testid="step-confirm">
                     <h2 className="font-semibold text-lg text-foreground mb-5">Review & Confirm</h2>
 
@@ -708,17 +918,13 @@ export default function Book() {
                       )}
 
                       <div className="p-4 rounded-xl bg-muted/50">
-                        <h3 className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">Preferred Date</h3>
-                        {selectedDate ? (
-                          <>
-                            <p className="font-medium text-foreground">
-                              {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">Time to be confirmed</p>
-                          </>
-                        ) : (
-                          <p className="text-muted-foreground">No preference — we'll reach out to schedule</p>
-                        )}
+                        <h3 className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">Appointment</h3>
+                        <p className="font-medium text-foreground">
+                          {selectedDate?.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {selectedSlot && formatTimeDisplay(selectedSlot.startTime)}
+                        </p>
                       </div>
 
                       <div className="p-4 rounded-xl bg-muted/50">
@@ -734,16 +940,35 @@ export default function Book() {
                         {form.getValues().petBreed && (
                           <p className="text-muted-foreground">{form.getValues().petBreed}</p>
                         )}
+                        {photoPreview && (
+                          <img src={photoPreview} alt="Pet" className="w-16 h-16 rounded-lg object-cover mt-2" />
+                        )}
                       </div>
 
                       <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
                         <div className="flex justify-between gap-2">
-                          <span className="font-semibold text-foreground">Total</span>
-                          <span className="font-bold text-xl text-foreground">${totalPrice}</span>
+                          <span className="font-semibold text-foreground">Service Total</span>
+                          <span className="font-bold text-lg text-foreground">${totalPrice}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Payment will be collected at the time of service.
-                        </p>
+                        {bookingConfig?.depositEnabled ? (
+                          <>
+                            <div className="flex justify-between gap-2 mt-2 pt-2 border-t border-primary/20">
+                              <span className="font-semibold text-foreground">Due Now (Deposit)</span>
+                              <span className="font-bold text-xl text-primary">${((bookingConfig.depositAmount || 2500) / 100).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between gap-2 mt-1">
+                              <span className="text-muted-foreground text-sm">Remaining Balance</span>
+                              <span className="text-muted-foreground text-sm">${Math.max(0, totalPrice - (bookingConfig.depositAmount || 2500) / 100).toFixed(2)}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              A non-refundable deposit is required to confirm your booking. The remaining balance is due at the time of service.
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Full balance is due at the time of service. Our staff will review your booking and reach out to confirm.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </Card>
@@ -763,7 +988,7 @@ export default function Book() {
                 Back
               </Button>
 
-              {step < 5 ? (
+              {step < 6 ? (
                 <Button
                   onClick={handleNext}
                   disabled={!canProceed()}
@@ -780,7 +1005,7 @@ export default function Book() {
                   className="gap-1.5"
                   data-testid="button-confirm-booking"
                 >
-                  {submitting ? "Booking..." : "Confirm Booking"}
+                  {submitting ? "Processing..." : bookingConfig?.depositEnabled ? `Pay $${((bookingConfig.depositAmount || 2500) / 100).toFixed(2)} Deposit & Confirm` : "Submit Booking"}
                   <CheckCircle2 className="w-4 h-4" />
                 </Button>
               )}
@@ -836,10 +1061,24 @@ export default function Book() {
                       </div>
                     )}
 
+                    {selectedSlot && (
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">Time</span>
+                        <span className="text-foreground">{formatTimeDisplay(selectedSlot.startTime)}</span>
+                      </div>
+                    )}
 
-                    <div className="border-t border-border/50 pt-3 flex justify-between gap-2">
-                      <span className="font-semibold text-foreground">Total</span>
-                      <span className="font-bold text-lg text-foreground" data-testid="text-summary-total">${totalPrice}</span>
+                    <div className="border-t border-border/50 pt-3 space-y-1">
+                      <div className="flex justify-between gap-2">
+                        <span className="font-semibold text-foreground">Service Total</span>
+                        <span className="font-bold text-lg text-foreground" data-testid="text-summary-total">${totalPrice}</span>
+                      </div>
+                      {bookingConfig?.depositEnabled && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-xs text-primary font-medium">Deposit Due Now</span>
+                          <span className="text-xs text-primary font-medium">${((bookingConfig.depositAmount || 2500) / 100).toFixed(2)}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (

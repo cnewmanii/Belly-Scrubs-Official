@@ -4,7 +4,7 @@ import {
   type Booking, type InsertBooking,
   type PetCalendar, type InsertPetCalendar,
   type PetCalendarMonth,
-  petCalendars, petCalendarMonths,
+  bookings, petCalendars, petCalendarMonths,
 } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -13,8 +13,17 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+
   getBooking(id: string): Promise<Booking | undefined>;
   createBooking(booking: InsertBooking): Promise<Booking>;
+  updateBookingDepositStatus(id: string, status: string, stripeSessionId: string): Promise<void>;
+  updateBookingSquareId(id: string, squareAppointmentId: string): Promise<void>;
+  updateBookingStatus(id: string, status: string): Promise<void>;
+  getBookingByStripeSession(sessionId: string): Promise<Booking | undefined>;
+  updateBookingPhoto(id: string, photoUrl: string, photoTimestamp: Date | null): Promise<void>;
+  updateBookingApprovalToken(id: string, token: string): Promise<void>;
+  getBookingByApprovalToken(token: string): Promise<Booking | undefined>;
+  approveBooking(id: string): Promise<void>;
 
   createPetCalendar(data: InsertPetCalendar): Promise<PetCalendar>;
   getPetCalendar(id: number): Promise<PetCalendar | undefined>;
@@ -28,12 +37,11 @@ export interface IStorage {
 }
 
 class DatabaseStorage implements IStorage {
+  // Users still in-memory (not critical for booking flow)
   private users: Map<string, User>;
-  private bookings: Map<string, Booking>;
 
   constructor() {
     this.users = new Map();
-    this.bookings = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -53,22 +61,71 @@ class DatabaseStorage implements IStorage {
     return user;
   }
 
+  // --- Bookings (now in PostgreSQL) ---
+
   async getBooking(id: string): Promise<Booking | undefined> {
-    return this.bookings.get(id);
+    const [booking] = await db.select().from(bookings).where(eq(bookings.id, id));
+    return booking;
   }
 
   async createBooking(insertBooking: InsertBooking): Promise<Booking> {
-    const id = randomUUID();
-    const booking: Booking = {
+    const [booking] = await db.insert(bookings).values({
       ...insertBooking,
-      id,
-      status: "confirmed",
       petBreed: insertBooking.petBreed ?? null,
       notes: insertBooking.notes ?? null,
-    };
-    this.bookings.set(id, booking);
+    }).returning();
     return booking;
   }
+
+  async updateBookingDepositStatus(id: string, status: string, stripeSessionId: string): Promise<void> {
+    await db.update(bookings)
+      .set({ depositStatus: status, depositStripeSessionId: stripeSessionId })
+      .where(eq(bookings.id, id));
+  }
+
+  async updateBookingSquareId(id: string, squareAppointmentId: string): Promise<void> {
+    await db.update(bookings)
+      .set({ squareAppointmentId })
+      .where(eq(bookings.id, id));
+  }
+
+  async updateBookingStatus(id: string, status: string): Promise<void> {
+    await db.update(bookings)
+      .set({ status })
+      .where(eq(bookings.id, id));
+  }
+
+  async getBookingByStripeSession(sessionId: string): Promise<Booking | undefined> {
+    const [booking] = await db.select().from(bookings)
+      .where(eq(bookings.depositStripeSessionId, sessionId));
+    return booking;
+  }
+
+  async updateBookingPhoto(id: string, photoUrl: string, photoTimestamp: Date | null): Promise<void> {
+    await db.update(bookings)
+      .set({ petPhotoUrl: photoUrl, petPhotoTimestamp: photoTimestamp })
+      .where(eq(bookings.id, id));
+  }
+
+  async updateBookingApprovalToken(id: string, token: string): Promise<void> {
+    await db.update(bookings)
+      .set({ approvalToken: token })
+      .where(eq(bookings.id, id));
+  }
+
+  async getBookingByApprovalToken(token: string): Promise<Booking | undefined> {
+    const [booking] = await db.select().from(bookings)
+      .where(eq(bookings.approvalToken, token));
+    return booking;
+  }
+
+  async approveBooking(id: string): Promise<void> {
+    await db.update(bookings)
+      .set({ status: "confirmed", approvedAt: new Date() })
+      .where(eq(bookings.id, id));
+  }
+
+  // --- Pet Calendars (unchanged) ---
 
   async createPetCalendar(data: InsertPetCalendar): Promise<PetCalendar> {
     const [calendar] = await db.insert(petCalendars).values(data).returning();

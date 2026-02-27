@@ -13,6 +13,9 @@ declare module "http" {
 }
 
 export let stripeEnabled = false;
+export let squareEnabled = false;
+export let depositEnabled = false;
+export let emailEnabled = false;
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -54,6 +57,39 @@ async function initStripe() {
 }
 
 await initStripe();
+
+// Initialize Square
+function initSquare() {
+  const accessToken = process.env.SQUARE_ACCESS_TOKEN;
+  const locationId = process.env.SQUARE_LOCATION_ID;
+  if (accessToken && locationId) {
+    squareEnabled = true;
+    log("Square configured (access token + location ID found)");
+  } else {
+    log("Square not configured — booking availability will use fallback slots");
+  }
+}
+
+initSquare();
+
+// Initialize deposit toggle
+// Set DEPOSIT_ENABLED=true in Replit Secrets when ready to charge deposits
+depositEnabled = process.env.DEPOSIT_ENABLED === "true";
+log(`Deposit collection: ${depositEnabled ? "ENABLED" : "DISABLED (set DEPOSIT_ENABLED=true to enable)"}`);
+
+// Initialize email
+function initEmail() {
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  if (smtpUser && smtpPass) {
+    emailEnabled = true;
+    log(`Email configured (${smtpUser})`);
+  } else {
+    log("Email not configured — booking notifications will be skipped");
+  }
+}
+
+initEmail();
 
 app.post(
   "/api/stripe/webhook",

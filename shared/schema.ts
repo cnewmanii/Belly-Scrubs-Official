@@ -23,7 +23,16 @@ export const bookings = pgTable("bookings", {
   petBreed: text("pet_breed"),
   notes: text("notes"),
   totalPrice: integer("total_price").notNull(),
-  status: text("status").default("confirmed"),
+  status: text("status").default("pending"),
+  depositAmount: integer("deposit_amount").default(2500),
+  depositStatus: text("deposit_status").default("pending"),
+  depositStripeSessionId: text("deposit_stripe_session_id"),
+  squareAppointmentId: text("square_appointment_id"),
+  petPhotoUrl: text("pet_photo_url"),
+  petPhotoTimestamp: timestamp("pet_photo_timestamp"),
+  approvalToken: text("approval_token"),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
 export const petTypeEnum = pgEnum("pet_type", ["dog", "cat"]);
@@ -62,6 +71,15 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export const insertBookingSchema = createInsertSchema(bookings).omit({
   id: true,
   status: true,
+  depositAmount: true,
+  depositStatus: true,
+  depositStripeSessionId: true,
+  squareAppointmentId: true,
+  petPhotoUrl: true,
+  petPhotoTimestamp: true,
+  approvalToken: true,
+  approvedAt: true,
+  createdAt: true,
 });
 
 export const insertPetCalendarSchema = createInsertSchema(petCalendars).omit({
