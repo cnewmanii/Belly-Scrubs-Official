@@ -6,13 +6,21 @@ let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter(): nodemailer.Transporter {
   if (!transporter) {
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    if (!smtpUser || !smtpPass) {
+      console.warn("EMAIL: SMTP_USER or SMTP_PASS not set — emails will fail");
+    }
+    const host = process.env.SMTP_HOST || "smtp.office365.com";
+    const port = parseInt(process.env.SMTP_PORT || "587", 10);
+    console.log(`EMAIL: Creating SMTP transport → ${host}:${port} (user: ${smtpUser || "NOT SET"})`);
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.office365.com",
-      port: parseInt(process.env.SMTP_PORT || "587", 10),
+      host,
+      port,
       secure: false, // STARTTLS
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: smtpUser,
+        pass: smtpPass,
       },
       tls: {
         ciphers: "SSLv3",
@@ -131,7 +139,9 @@ export async function sendCustomerBookingEmail(booking: Booking): Promise<void> 
     });
     log(`Customer email sent to ${booking.customerEmail}`, "email");
   } catch (error: any) {
+    console.error("EMAIL SEND FAILED (customer):", error.message, error.code || "", error.responseCode || "");
     log(`Failed to send customer email: ${error.message}`, "email");
+    throw error;
   }
 }
 
@@ -226,7 +236,9 @@ export async function sendStaffBookingEmail(
     });
     log(`Staff notification sent to ${staffEmail}`, "email");
   } catch (error: any) {
+    console.error("EMAIL SEND FAILED (staff):", error.message, error.code || "", error.responseCode || "");
     log(`Failed to send staff email: ${error.message}`, "email");
+    throw error;
   }
 }
 
@@ -279,6 +291,8 @@ export async function sendBookingApprovedEmail(booking: Booking): Promise<void> 
     });
     log(`Approval confirmation sent to ${booking.customerEmail}`, "email");
   } catch (error: any) {
+    console.error("EMAIL SEND FAILED (approval):", error.message, error.code || "", error.responseCode || "");
     log(`Failed to send approval email: ${error.message}`, "email");
+    throw error;
   }
 }

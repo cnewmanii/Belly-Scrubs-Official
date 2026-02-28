@@ -179,6 +179,11 @@ export default function Book() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Minimum bookable date: at least 24 hours from now.
+  // If the latest slot (15:00) is already within 24h, push to the next day.
+  const minBookableDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  minBookableDate.setHours(0, 0, 0, 0);
+
   const [calMonth, setCalMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
 
   const loadSlots = useCallback(async (date: Date) => {
@@ -650,19 +655,19 @@ export default function Book() {
                           if (!day) return <div key={`e-${i}`} />;
                           const isToday = isSameDay(day, today);
                           const isSelected = selectedDate && isSameDay(day, selectedDate);
-                          const isPast = day < today;
+                          const isTooSoon = day < minBookableDate;
                           const isSunday = day.getDay() === 0;
                           return (
                             <button
                               key={day.toISOString()}
-                              disabled={isPast || isSunday}
+                              disabled={isTooSoon || isSunday}
                               onClick={() => { setSelectedDate(new Date(day)); setSelectedSlot(null); }}
                               className={`w-full aspect-square flex items-center justify-center text-sm rounded-lg transition-all ${
                                 isSelected
                                   ? "bg-primary text-primary-foreground font-semibold"
                                   : isToday
                                   ? "bg-primary/10 text-primary font-medium"
-                                  : isPast || isSunday
+                                  : isTooSoon || isSunday
                                   ? "text-muted-foreground/40 cursor-not-allowed"
                                   : "text-foreground hover-elevate cursor-pointer"
                               }`}

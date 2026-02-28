@@ -7,8 +7,10 @@ export function getSquareClient(): Client {
   if (!squareClient) {
     const accessToken = process.env.SQUARE_ACCESS_TOKEN;
     if (!accessToken) {
+      console.warn("SQUARE: SQUARE_ACCESS_TOKEN not configured — Square API calls will fail");
       throw new Error("SQUARE_ACCESS_TOKEN not configured");
     }
+    console.log("SQUARE: Initializing Square client (Production environment)");
     squareClient = new Client({
       accessToken,
       environment: Environment.Production,
@@ -73,6 +75,8 @@ export async function createSquareAppointment(
   const endMinutes = 120;
 
   try {
+    console.log(`SQUARE: Creating appointment for ${data.petName} on ${data.date} at ${data.time}`);
+
     // First, search for or create the customer in Square
     const customerId = await findOrCreateSquareCustomer(
       data.customerName,
@@ -80,6 +84,7 @@ export async function createSquareAppointment(
       data.customerPhone
     );
 
+    console.log(`SQUARE: Customer resolved: ${customerId}, creating booking...`);
     const response = await client.bookingsApi.createBooking({
       booking: {
         startAt: startAt.toISOString(),
@@ -108,10 +113,12 @@ export async function createSquareAppointment(
   } catch (error: any) {
     // If the Bookings API isn't available (requires Square Appointments subscription),
     // fall back to creating a simple note via the Orders or Customers API
+    console.error("SQUARE: Bookings API error:", error.message, error.body || "");
     log(`Square Bookings API error: ${error.message}`, "square");
 
     // Fallback: Create as a customer note if Bookings API fails
     try {
+      console.log("SQUARE: Falling back to customer note...");
       const customerId = await findOrCreateSquareCustomer(
         data.customerName,
         data.customerEmail,
@@ -123,9 +130,11 @@ export async function createSquareAppointment(
         note: `UPCOMING APPOINTMENT - ${data.date} at ${data.time}\n${noteLines}`,
       });
 
+      console.log(`SQUARE: Customer note created for: ${customerId}`);
       log(`Square customer note created for: ${customerId}`, "square");
       return `customer-note-${customerId}`;
     } catch (fallbackError: any) {
+      console.error("SQUARE: Fallback (customer note) also failed:", fallbackError.message);
       log(`Square fallback error: ${fallbackError.message}`, "square");
       throw new Error(`Failed to create Square appointment: ${error.message}`);
     }
@@ -144,6 +153,7 @@ async function findOrCreateSquareCustomer(
 
   // Search for existing customer by email
   try {
+    console.log(`SQUARE: Searching for customer by email: ${email}`);
     const searchResponse = await client.customersApi.searchCustomers({
       query: {
         filter: {
@@ -155,9 +165,12 @@ async function findOrCreateSquareCustomer(
     });
 
     if (searchResponse.result.customers && searchResponse.result.customers.length > 0) {
+      console.log(`SQUARE: Found existing customer: ${searchResponse.result.customers[0].id}`);
       return searchResponse.result.customers[0].id!;
     }
-  } catch {
+    console.log("SQUARE: No existing customer found, creating new...");
+  } catch (searchErr: any) {
+    console.error("SQUARE: Customer search failed:", searchErr.message);
     // Search failed, try creating
   }
 
@@ -195,6 +208,7 @@ export async function getSquareOccupiedSlots(date: string): Promise<string[]> {
   const endOfDay = new Date(year, month - 1, day, 23, 59, 59);
 
   try {
+    console.log(`SQUARE: Checking occupied slots for ${date} (location: ${locationId})`);
     const response = await client.bookingsApi.listBookings(
       undefined, // cursor
       undefined, // limit
@@ -206,6 +220,7 @@ export async function getSquareOccupiedSlots(date: string): Promise<string[]> {
 
     const occupiedTimes: string[] = [];
     const bookings = response.result.bookings || [];
+    console.log(`SQUARE: Found ${bookings.length} existing booking(s) on ${date}`);
 
     for (const booking of bookings) {
       if (booking.status === "CANCELLED_BY_CUSTOMER" || booking.status === "CANCELLED_BY_SELLER") {
@@ -245,6 +260,7 @@ export async function getSquareOccupiedSlots(date: string): Promise<string[]> {
 
     return [...new Set(occupiedTimes)]; // deduplicate
   } catch (error: any) {
+    console.error(`SQUARE: Availability check failed for ${date}:`, error.message);
     log(`Square availability check error: ${error.message}`, "square");
     // If Square API fails, return empty (all slots available) to not block bookings
     return [];
