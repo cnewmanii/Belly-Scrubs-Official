@@ -84,6 +84,37 @@ function initEmail() {
   }
 }
 
+async function checkDatabase() {
+  console.log("Checking database connectivity...");
+  try {
+    const { db } = await import("./db");
+    const { sql } = await import("drizzle-orm");
+
+    // Test basic connectivity
+    await db.execute(sql`SELECT 1`);
+    console.log("Database connection: OK");
+
+    // Check if required tables exist
+    const tables = await db.execute(sql`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name IN ('bookings', 'pet_calendars', 'pet_calendar_months')
+    `);
+    const existingTables = tables.rows.map((r: any) => r.table_name);
+    const required = ["bookings", "pet_calendars", "pet_calendar_months"];
+    const missing = required.filter((t) => !existingTables.includes(t));
+
+    if (missing.length > 0) {
+      console.error(`CRITICAL: Missing database tables: ${missing.join(", ")}. Run 'drizzle-kit push' against the Railway database.`);
+    } else {
+      console.log(`Database tables verified: ${existingTables.join(", ")}`);
+    }
+  } catch (err) {
+    console.error("Database connectivity check FAILED:", err instanceof Error ? err.message : err);
+    console.error("Endpoints that require the database will return 500 errors.");
+  }
+}
+
 console.log("Setting up middleware...");
 
 app.post(
@@ -144,6 +175,9 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
+    // Verify database connectivity and tables
+    await checkDatabase();
+
     // Initialize services
     await initStripe();
     initSquare();

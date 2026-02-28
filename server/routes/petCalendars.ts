@@ -9,12 +9,11 @@ import { storage } from "../storage";
 import { stripeEnabled } from "../index";
 
 function getOpenAIClient() {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-  const config: { apiKey?: string; baseURL?: string } = { apiKey };
-  if (!process.env.OPENAI_API_KEY && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
-    config.baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not set — cannot generate calendar images");
   }
-  return new OpenAI(config);
+  return new OpenAI({ apiKey });
 }
 
 const CALENDAR_PRICE_CENTS = 2999;
@@ -104,7 +103,7 @@ export function registerPetCalendarRoutes(app: Express) {
 
       res.json({ id: calendar.id });
     } catch (err) {
-      console.error("Calendar creation error:", err);
+      console.error("Calendar creation error:", err instanceof Error ? err.stack : err);
       res.status(500).json({ error: "Failed to create calendar" });
     }
   });
@@ -128,6 +127,7 @@ export function registerPetCalendarRoutes(app: Express) {
         months: months.sort((a, b) => a.month - b.month),
       });
     } catch (err) {
+      console.error("Calendar fetch error:", err instanceof Error ? err.stack : err);
       res.status(500).json({ error: "Failed to fetch calendar" });
     }
   });

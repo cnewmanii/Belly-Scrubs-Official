@@ -14,4 +14,4 @@ EXPOSE 5000
 
 ENV NODE_ENV=production
 
-CMD ["node", "dist/index.cjs"]
+CMD ["sh", "-c", "npx drizzle-kit push 2>&1 || echo 'WARNING: drizzle-kit push failed — tables may already exist'; node dist/index.cjs"]
