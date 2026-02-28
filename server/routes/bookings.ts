@@ -219,6 +219,8 @@ export function registerBookingRoutes(app: Express) {
 
       const parsed = insertBookingSchema.safeParse(body);
       if (!parsed.success) {
+        console.error("Booking validation failed:", JSON.stringify(parsed.error.issues, null, 2));
+        console.error("Received body keys:", Object.keys(body));
         return res.status(400).json({ error: "Invalid booking data", details: parsed.error.issues });
       }
 
@@ -305,7 +307,9 @@ export function registerBookingRoutes(app: Express) {
         depositEnabled: false,
       });
     } catch (err) {
-      log(`Booking creation error: ${err}`, "booking");
+      const errMsg = err instanceof Error ? err.stack || err.message : String(err);
+      console.error("Booking creation error:", errMsg);
+      log(`Booking creation error: ${errMsg}`, "booking");
       return res.status(500).json({ error: "Failed to create booking" });
     }
   });
@@ -428,6 +432,7 @@ export function registerBookingRoutes(app: Express) {
       if (!booking) return res.status(404).json({ error: "Booking not found" });
       return res.json(booking);
     } catch (err) {
+      console.error("Get booking error:", err instanceof Error ? err.stack : err);
       return res.status(500).json({ error: "Failed to get booking" });
     }
   });
