@@ -4,7 +4,11 @@ WORKDIR /app
 
 COPY . .
 
-RUN npm install && npm install square@44 nodemailer exifr
+RUN npm install
+RUN npm install square@44 nodemailer exifr
+
+# Fix build script: externalize ALL deps so esbuild doesn't try to bundle them
+RUN sed -i 's/const externals = allDeps.filter((dep) => !allowlist.includes(dep));/const externals = allDeps;/' script/build.ts
 
 RUN npx tsx script/build.ts
 
