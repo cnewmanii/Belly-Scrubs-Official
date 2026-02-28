@@ -1,5 +1,4 @@
-import pkg from "square";
-const { Client, Environment } = pkg;
+import { Client, Environment } from "square";
 import { log } from "./index";
 
 let squareClient: Client | null = null;
