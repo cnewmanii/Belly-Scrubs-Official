@@ -2,10 +2,9 @@ FROM node:20-slim
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install
-
 COPY . .
+
+RUN npm install && npm install square@44 nodemailer exifr
 
 RUN npx tsx script/build.ts
 
