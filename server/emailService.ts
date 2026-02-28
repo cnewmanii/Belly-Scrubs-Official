@@ -151,9 +151,7 @@ export async function sendStaffBookingEmail(
     ? booking.addOns.join(", ")
     : "None";
 
-  const baseUrl = process.env.REPLIT_DOMAINS
-    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-    : "https://bellyscrubs.com";
+  const baseUrl = process.env.APP_URL || "https://bellyscrubs.com";
 
   const approvalUrl = `${baseUrl}/api/bookings/${booking.id}/approve?token=${approvalToken}`;
 
