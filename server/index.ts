@@ -42,10 +42,8 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-// Initialize Stripe
-console.log("Initializing Stripe...");
-
 async function initStripe() {
+  console.log("Initializing Stripe...");
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
     log("STRIPE_SECRET_KEY not found, skipping Stripe init");
@@ -60,15 +58,11 @@ async function initStripe() {
     log("Stripe not available — running without payments");
     stripeEnabled = false;
   }
+  console.log("Stripe init complete");
 }
 
-await initStripe();
-console.log("Stripe init complete");
-
-// Initialize Square
-console.log("Initializing Square...");
-
 function initSquare() {
+  console.log("Initializing Square...");
   const accessToken = process.env.SQUARE_ACCESS_TOKEN;
   const locationId = process.env.SQUARE_LOCATION_ID;
   if (accessToken && locationId) {
@@ -79,13 +73,6 @@ function initSquare() {
   }
 }
 
-initSquare();
-
-// Initialize deposit toggle
-depositEnabled = process.env.DEPOSIT_ENABLED === "true";
-log(`Deposit collection: ${depositEnabled ? "ENABLED" : "DISABLED (set DEPOSIT_ENABLED=true to enable)"}`);
-
-// Initialize email
 function initEmail() {
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
@@ -96,8 +83,6 @@ function initEmail() {
     log("Email not configured — booking notifications will be skipped");
   }
 }
-
-initEmail();
 
 console.log("Setting up middleware...");
 
@@ -157,10 +142,16 @@ app.use((req, res, next) => {
   next();
 });
 
-console.log("Registering routes...");
-
 (async () => {
   try {
+    // Initialize services
+    await initStripe();
+    initSquare();
+    depositEnabled = process.env.DEPOSIT_ENABLED === "true";
+    log(`Deposit collection: ${depositEnabled ? "ENABLED" : "DISABLED (set DEPOSIT_ENABLED=true to enable)"}`);
+    initEmail();
+
+    console.log("Registering routes...");
     await registerRoutes(httpServer, app);
 
     app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
