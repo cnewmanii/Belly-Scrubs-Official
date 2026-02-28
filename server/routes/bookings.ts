@@ -136,14 +136,28 @@ export function registerBookingRoutes(app: Express) {
       let occupiedTimes: string[] = [];
       try {
         occupiedTimes = await getSquareOccupiedSlots(date);
+        if (occupiedTimes.length > 0) {
+          console.log(`SQUARE: Occupied slots on ${date}: ${occupiedTimes.join(", ")}`);
+        }
       } catch (err: any) {
+        console.error(`SQUARE: Availability check failed for ${date}:`, err.message);
         log(`Square availability check failed: ${err.message}`, "booking");
       }
+
+      const now = Date.now();
+      const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
       const slots = FIXED_SLOTS
         .filter((slot) => {
           const slotHour = parseInt(slot.time.split(":")[0], 10);
-          return slotHour >= hours.open && (slotHour + 2) <= hours.close;
+          if (slotHour < hours.open || (slotHour + 2) > hours.close) return false;
+
+          // Filter out slots less than 24 hours from now
+          const [slotMin] = slot.time.split(":").slice(1).map(Number);
+          const slotDate = new Date(year, month - 1, day, slotHour, slotMin || 0);
+          if (slotDate.getTime() - now < TWENTY_FOUR_HOURS_MS) return false;
+
+          return true;
         })
         .map((slot) => ({
           id: `${date}-${slot.time.replace(":", "")}`,
@@ -222,6 +236,14 @@ export function registerBookingRoutes(app: Express) {
         console.error("Booking validation failed:", JSON.stringify(parsed.error.issues, null, 2));
         console.error("Received body keys:", Object.keys(body));
         return res.status(400).json({ error: "Invalid booking data", details: parsed.error.issues });
+      }
+
+      // Reject bookings less than 24 hours in advance
+      const [bYear, bMonth, bDay] = parsed.data.date.split("-").map(Number);
+      const [bHour, bMin] = parsed.data.time.split(":").map(Number);
+      const appointmentTime = new Date(bYear, bMonth - 1, bDay, bHour, bMin).getTime();
+      if (appointmentTime - Date.now() < 24 * 60 * 60 * 1000) {
+        return res.status(400).json({ error: "Appointments must be booked at least 24 hours in advance." });
       }
 
       const { tempPhotoFile, photoDate } = body;
@@ -382,6 +404,7 @@ export function registerBookingRoutes(app: Express) {
 
       // Create Square appointment (non-blocking)
       try {
+        console.log(`SQUARE: Staff approved booking ${bookingId}, creating Square appointment...`);
         const { createSquareAppointment } = await import("../squareClient");
         const squareId = await createSquareAppointment({
           customerName: booking.customerName,
@@ -400,6 +423,7 @@ export function registerBookingRoutes(app: Express) {
         await storage.updateBookingSquareId(bookingId, squareId);
         log(`Square appointment created for approved booking ${bookingId}: ${squareId}`, "booking");
       } catch (squareErr: any) {
+        console.error(`SQUARE: Appointment creation failed on approval for ${bookingId}:`, squareErr.message);
         log(`Square creation failed on approval: ${squareErr.message}`, "booking");
       }
 
@@ -442,6 +466,7 @@ export function registerBookingRoutes(app: Express) {
 
 async function sendBookingEmails(bookingId: string, photoFilePath: string, approvalToken: string) {
   if (!emailEnabled) {
+    console.warn("EMAIL SKIPPED: SMTP_USER/SMTP_PASS not configured — booking notifications not sent for", bookingId);
     log("Email not configured, skipping booking notifications", "email");
     return;
   }
@@ -453,11 +478,18 @@ async function sendBookingEmails(bookingId: string, photoFilePath: string, appro
     const { sendCustomerBookingEmail, sendStaffBookingEmail } = await import("../emailService");
 
     // Send both emails concurrently
-    await Promise.all([
+    const results = await Promise.allSettled([
       sendCustomerBookingEmail(booking),
       sendStaffBookingEmail(booking, photoFilePath, approvalToken),
     ]);
+
+    for (const result of results) {
+      if (result.status === "rejected") {
+        console.error("EMAIL: One of the booking emails failed:", result.reason?.message || result.reason);
+      }
+    }
   } catch (err: any) {
+    console.error("EMAIL: sendBookingEmails error:", err.message);
     log(`Booking email error: ${err.message}`, "email");
   }
 }
