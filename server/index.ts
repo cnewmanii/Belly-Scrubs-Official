@@ -29,27 +29,16 @@ export function log(message: string, source = "express") {
 }
 
 async function initStripe() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    log("DATABASE_URL not found, skipping Stripe init");
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    log("STRIPE_SECRET_KEY not found, skipping Stripe init");
     return;
   }
   try {
-    const { runMigrations } = await import("stripe-replit-sync");
-    const { getStripeSync } = await import("./stripeClient");
-
-    log("Initializing Stripe schema...");
-    await runMigrations({ databaseUrl });
-    log("Stripe schema ready");
-
-    const stripeSync = await getStripeSync();
-    const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
-    await stripeSync.findOrCreateManagedWebhook(`${webhookBaseUrl}/api/stripe/webhook`);
-    log("Webhook configured");
-
-    stripeSync.syncBackfill().then(() => log("Stripe data synced")).catch(console.error);
+    const { getUncachableStripeClient } = await import("./stripeClient");
+    await getUncachableStripeClient();
     stripeEnabled = true;
-    log("Stripe fully initialized");
+    log("Stripe initialized");
   } catch (error) {
     log("Stripe not available — running without payments");
     stripeEnabled = false;
@@ -73,7 +62,6 @@ function initSquare() {
 initSquare();
 
 // Initialize deposit toggle
-// Set DEPOSIT_ENABLED=true in Replit Secrets when ready to charge deposits
 depositEnabled = process.env.DEPOSIT_ENABLED === "true";
 log(`Deposit collection: ${depositEnabled ? "ENABLED" : "DISABLED (set DEPOSIT_ENABLED=true to enable)"}`);
 
