@@ -5,8 +5,8 @@ import fs from "fs";
 import { storage } from "../storage";
 import { insertBookingSchema } from "@shared/schema";
 import { stripeEnabled, depositEnabled, emailEnabled } from "../index";
-import { getSquareOccupiedSlots, getSquareAvailability, type OccupiedSlot, type SquareAvailableSlot } from "../squareClient";
-import { getQualifiedGroomers, isGroomerWorking, getWorkingGroomers, getConfiguredTeamMemberIds, GROOMERS } from "../groomerConfig";
+import { getSquareOccupiedSlots, type OccupiedSlot } from "../squareClient";
+import { getQualifiedGroomers, isGroomerWorking, getWorkingGroomers, GROOMERS } from "../groomerConfig";
 import { log } from "../index";
 import { randomUUID } from "crypto";
 
@@ -145,91 +145,24 @@ export function registerBookingRoutes(app: Express) {
       const now = Date.now();
       const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
-      // Collect Square team member IDs for qualified groomers (only those mapped)
-      const qualifiedTeamMemberIds = qualifiedGroomers
-        .filter((g) => g.squareTeamMemberId)
-        .map((g) => g.squareTeamMemberId);
-
       console.log(`AVAILABILITY: date=${date}, service=${svcId || "any"}, size=${size || "any"}, ` +
         `qualified=[${qualifiedGroomers.map(g => `${g.id}(${g.squareTeamMemberId || "unmapped"})`).join(",")}]`);
 
-      // ── PRIMARY: Try Square searchAvailability ──
-      // This is the single source of truth — accounts for ALL appointments
-      // (API + manually created) AND team member schedules/days off.
-      let squareAvailability: SquareAvailableSlot[] | null = null;
-      try {
-        squareAvailability = await getSquareAvailability(
-          date,
-          qualifiedTeamMemberIds.length > 0 ? qualifiedTeamMemberIds : undefined,
-        );
-      } catch (err: any) {
-        console.error(`SQUARE: searchAvailability failed for ${date}:`, err.message);
-      }
-
-      if (squareAvailability) {
-        // ── Square searchAvailability succeeded — use it as source of truth ──
-        console.log(`AVAILABILITY: Using Square searchAvailability (primary) for ${date}`);
-
-        const slots = FIXED_SLOTS
-          .filter((slot) => {
-            const slotHour = parseInt(slot.time.split(":")[0], 10);
-            if (slotHour < hours.open || (slotHour + 2) > hours.close) return false;
-            const [slotMin] = slot.time.split(":").slice(1).map(Number);
-            const slotDate = new Date(year, month - 1, day, slotHour, slotMin || 0);
-            if (slotDate.getTime() - now < TWENTY_FOUR_HOURS_MS) return false;
-            return true;
-          })
-          .map((slot) => {
-            const squareSlot = squareAvailability!.find((s) => s.time === slot.time);
-            const availableTeamMembers = squareSlot?.teamMemberIds || [];
-
-            // Cross-reference with our qualified groomers
-            let freeCount: number;
-            if (qualifiedTeamMemberIds.length > 0) {
-              // Count only qualified groomers who Square says are available
-              freeCount = availableTeamMembers.filter((tmId) =>
-                qualifiedTeamMemberIds.includes(tmId)
-              ).length;
-            } else {
-              // No team member IDs mapped — trust Square's count directly
-              freeCount = availableTeamMembers.length;
-            }
-
-            const available = freeCount > 0;
-
-            console.log(`AVAILABILITY: [SQUARE] slot=${slot.time}, ` +
-              `squareAvailable=[${availableTeamMembers.join(",")}], ` +
-              `qualifiedFree=${freeCount}, available=${available}`);
-
-            return {
-              id: `${date}-${slot.time.replace(":", "")}`,
-              startTime: slot.time,
-              endTime: `${(parseInt(slot.time.split(":")[0], 10) + 2).toString().padStart(2, "0")}:00`,
-              available,
-            };
-          });
-
-        return res.json({ date, slots, source: "square" });
-      }
-
-      // ── FALLBACK: hardcoded schedules + bookings.list() ──
-      // Used when searchAvailability fails (no service catalog, API error, etc.)
-      console.log(`AVAILABILITY: Using FALLBACK (hardcoded schedule + bookings.list) for ${date}`);
-
-      const workingToday = getWorkingGroomers(date);
+      // Fetch existing bookings from Square for this date
       let occupiedSlots: OccupiedSlot[] = [];
       try {
         occupiedSlots = await getSquareOccupiedSlots(date);
         if (occupiedSlots.length > 0) {
-          console.log(`SQUARE: [FALLBACK] Occupied slots on ${date}: ${JSON.stringify(occupiedSlots)}`);
+          console.log(`SQUARE: Occupied slots on ${date}: ${JSON.stringify(occupiedSlots)}`);
         }
       } catch (err: any) {
-        console.error(`SQUARE: [FALLBACK] Availability check failed for ${date}:`, err.message);
+        console.error(`SQUARE: Availability check failed for ${date}:`, err.message);
         log(`Square availability check failed: ${err.message}`, "booking");
       }
 
-      console.log(`AVAILABILITY: [FALLBACK] workingToday=[${workingToday.map(g => g.id).join(",")}]`);
-
+      // Use hardcoded groomer schedules + Square bookings to determine availability.
+      // NOTE: Ad-hoc days off or schedule changes won't be reflected here unless
+      // staff creates blocking bookings in Square or the hardcoded schedule is updated.
       const slots = FIXED_SLOTS
         .filter((slot) => {
           const slotHour = parseInt(slot.time.split(":")[0], 10);
@@ -252,11 +185,13 @@ export function registerBookingRoutes(app: Express) {
           if (bookingsAtSlot.length > 0) {
             for (const occ of bookingsAtSlot) {
               if (occ.teamMemberId) {
+                // Precise: only count if the booked team member is one of our qualified groomers
                 const matchesQualified = availableAtSlot.some(
                   (g) => g.squareTeamMemberId === occ.teamMemberId
                 );
                 if (matchesQualified) bookedCount++;
               } else {
+                // No team member info — conservatively count as one qualified groomer booked
                 bookedCount++;
               }
             }
@@ -265,7 +200,7 @@ export function registerBookingRoutes(app: Express) {
           const freeGroomers = availableAtSlot.length - bookedCount;
           const available = freeGroomers > 0;
 
-          console.log(`AVAILABILITY: [FALLBACK] slot=${slot.time}, ` +
+          console.log(`AVAILABILITY: slot=${slot.time}, ` +
             `qualifiedWorking=[${availableAtSlot.map(g => g.id).join(",")}], ` +
             `bookingsAtSlot=${bookingsAtSlot.length}, bookedCount=${bookedCount}, ` +
             `freeGroomers=${freeGroomers}, available=${available}`);
@@ -278,7 +213,7 @@ export function registerBookingRoutes(app: Express) {
           };
         });
 
-      return res.json({ date, slots, source: "fallback" });
+      return res.json({ date, slots });
     } catch (err) {
       log(`Availability error: ${err}`, "booking");
       return res.status(500).json({ error: "Failed to check availability" });
