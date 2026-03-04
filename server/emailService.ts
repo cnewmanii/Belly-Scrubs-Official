@@ -202,10 +202,14 @@ export async function sendStaffBookingEmail(
 
         <p style="font-size: 13px; color: #6b7280;">Pre-groom photo is attached below. Please review, call the customer to confirm, then click the button to approve.</p>
 
+        <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin: 16px 0;">
+          <p style="margin: 0; font-size: 13px; color: #92400e;"><strong>⚠ Note:</strong> Approving will create a customer note in Square, but you must <strong>manually add this appointment to the Square calendar</strong>.</p>
+        </div>
+
         <div style="text-align: center; margin: 24px 0;">
           <a href="${approvalUrl}"
              style="display: inline-block; background: #16a34a; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-            ✓ Approve & Create Square Appointment
+            ✓ Approve Booking
           </a>
         </div>
 

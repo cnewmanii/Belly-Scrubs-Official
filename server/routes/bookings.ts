@@ -495,8 +495,17 @@ export function registerBookingRoutes(app: Express) {
         }
       }
 
+      // Format time for display
+      const [aH, aM] = booking.time.split(":").map(Number);
+      const aAmpm = aH >= 12 ? "PM" : "AM";
+      const aDisplayHour = aH > 12 ? aH - 12 : aH === 0 ? 12 : aH;
+      const approvalDisplayTime = `${aDisplayHour}:${aM.toString().padStart(2, "0")} ${aAmpm}`;
+
       return res.send(approvalPage(
-        `Appointment for ${booking.petName} (${booking.customerName}) has been approved and added to Square!`,
+        `Booking approved for ${booking.petName} (${booking.customerName})!<br><br>` +
+        `<strong style="color: #dc2626;">⚠ Please add this appointment to the Square calendar manually:</strong><br>` +
+        `${booking.serviceName} — ${booking.date} at ${approvalDisplayTime}<br>` +
+        `Customer: ${booking.customerName} (${booking.customerPhone})`,
         true
       ));
     } catch (err: any) {
