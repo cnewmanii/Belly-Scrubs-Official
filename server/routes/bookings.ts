@@ -185,13 +185,11 @@ export function registerBookingRoutes(app: Express) {
           if (bookingsAtSlot.length > 0) {
             for (const occ of bookingsAtSlot) {
               if (occ.teamMemberId) {
-                // Precise: only count if the booked team member is one of our qualified groomers
                 const matchesQualified = availableAtSlot.some(
                   (g) => g.squareTeamMemberId === occ.teamMemberId
                 );
                 if (matchesQualified) bookedCount++;
               } else {
-                // No team member info — conservatively count as one qualified groomer booked
                 bookedCount++;
               }
             }
@@ -200,7 +198,7 @@ export function registerBookingRoutes(app: Express) {
           const freeGroomers = availableAtSlot.length - bookedCount;
           const available = freeGroomers > 0;
 
-          console.log(`AVAILABILITY: slot=${slot.time}, ` +
+          console.log(`AVAILABILITY: [FALLBACK] slot=${slot.time}, ` +
             `qualifiedWorking=[${availableAtSlot.map(g => g.id).join(",")}], ` +
             `bookingsAtSlot=${bookingsAtSlot.length}, bookedCount=${bookedCount}, ` +
             `freeGroomers=${freeGroomers}, available=${available}`);
@@ -213,7 +211,7 @@ export function registerBookingRoutes(app: Express) {
           };
         });
 
-      return res.json({ date, slots });
+      return res.json({ date, slots, source: "fallback" });
     } catch (err) {
       log(`Availability error: ${err}`, "booking");
       return res.status(500).json({ error: "Failed to check availability" });
