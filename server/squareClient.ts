@@ -227,7 +227,7 @@ export async function getSquareOccupiedSlots(date: string): Promise<OccupiedSlot
     });
 
     const occupied: OccupiedSlot[] = [];
-    const bookings = response.bookings || [];
+    const bookings = response.result.bookings || [];
     console.log(`SQUARE: Found ${bookings.length} existing booking(s) on ${date}`);
 
     for (const booking of bookings) {
