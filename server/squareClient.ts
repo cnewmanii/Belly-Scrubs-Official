@@ -1,9 +1,15 @@
-import { Client, Environment } from "square";
+// Square SDK v44 uses SquareClient/SquareEnvironment (not Client/Environment).
+// The CJS bundle loads via require("square"), so we use the CJS-compatible names.
+const square = require("square") as typeof import("square");
+const { SquareClient, SquareEnvironment } = square;
+
 import { log } from "./index";
 
-let squareClient: Client | null = null;
+type SquareClientType = InstanceType<typeof SquareClient>;
 
-export function getSquareClient(): Client {
+let squareClient: SquareClientType | null = null;
+
+export function getSquareClient(): SquareClientType {
   if (!squareClient) {
     const accessToken = process.env.SQUARE_ACCESS_TOKEN;
     if (!accessToken) {
@@ -11,9 +17,9 @@ export function getSquareClient(): Client {
       throw new Error("SQUARE_ACCESS_TOKEN not configured");
     }
     console.log("SQUARE: Initializing Square client (Production environment)");
-    squareClient = new Client({
-      accessToken,
-      environment: Environment.Production,
+    squareClient = new SquareClient({
+      token: accessToken,
+      environment: SquareEnvironment.Production,
     });
   }
   return squareClient;
@@ -85,7 +91,7 @@ export async function createSquareAppointment(
     );
 
     console.log(`SQUARE: Customer resolved: ${customerId}, creating booking...`);
-    const response = await client.bookingsApi.createBooking({
+    const response = await client.bookings.create({
       booking: {
         startAt: startAt.toISOString(),
         locationId,
@@ -93,17 +99,15 @@ export async function createSquareAppointment(
         customerNote: noteLines,
         appointmentSegments: [
           {
-            durationMinutes: BigInt(endMinutes),
+            durationMinutes: endMinutes,
             teamMemberId: "anyone",
-            serviceVariationId: undefined as any,
-            serviceVariationVersion: undefined as any,
           },
         ],
       },
       idempotencyKey: `belly-scrubs-${Date.now()}-${Math.random().toString(36).substring(7)}`,
     });
 
-    const bookingId = response.result.booking?.id;
+    const bookingId = response.booking?.id;
     if (!bookingId) {
       throw new Error("Square did not return a booking ID");
     }
@@ -112,7 +116,7 @@ export async function createSquareAppointment(
     return bookingId;
   } catch (error: any) {
     // If the Bookings API isn't available (requires Square Appointments subscription),
-    // fall back to creating a simple note via the Orders or Customers API
+    // fall back to creating a simple note via the Customers API
     console.error("SQUARE: Bookings API error:", error.message, error.body || "");
     log(`Square Bookings API error: ${error.message}`, "square");
 
@@ -126,7 +130,8 @@ export async function createSquareAppointment(
       );
 
       // Update customer with appointment note
-      await client.customersApi.updateCustomer(customerId, {
+      await client.customers.update({
+        customerId,
         note: `UPCOMING APPOINTMENT - ${data.date} at ${data.time}\n${noteLines}`,
       });
 
@@ -154,7 +159,7 @@ async function findOrCreateSquareCustomer(
   // Search for existing customer by email
   try {
     console.log(`SQUARE: Searching for customer by email: ${email}`);
-    const searchResponse = await client.customersApi.searchCustomers({
+    const searchResponse = await client.customers.search({
       query: {
         filter: {
           emailAddress: {
@@ -164,9 +169,9 @@ async function findOrCreateSquareCustomer(
       },
     });
 
-    if (searchResponse.result.customers && searchResponse.result.customers.length > 0) {
-      console.log(`SQUARE: Found existing customer: ${searchResponse.result.customers[0].id}`);
-      return searchResponse.result.customers[0].id!;
+    if (searchResponse.customers && searchResponse.customers.length > 0) {
+      console.log(`SQUARE: Found existing customer: ${searchResponse.customers[0].id}`);
+      return searchResponse.customers[0].id!;
     }
     console.log("SQUARE: No existing customer found, creating new...");
   } catch (searchErr: any) {
@@ -179,7 +184,7 @@ async function findOrCreateSquareCustomer(
   const givenName = nameParts[0] || name;
   const familyName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
 
-  const createResponse = await client.customersApi.createCustomer({
+  const createResponse = await client.customers.create({
     givenName,
     familyName,
     emailAddress: email,
@@ -187,7 +192,7 @@ async function findOrCreateSquareCustomer(
     idempotencyKey: `belly-scrubs-customer-${email}-${Date.now()}`,
   });
 
-  const customerId = createResponse.result.customer?.id;
+  const customerId = createResponse.customer?.id;
   if (!customerId) {
     throw new Error("Square did not return a customer ID");
   }
@@ -215,17 +220,14 @@ export async function getSquareOccupiedSlots(date: string): Promise<OccupiedSlot
 
   try {
     console.log(`SQUARE: Checking occupied slots for ${date} (location: ${locationId})`);
-    const response = await client.bookingsApi.listBookings(
-      undefined, // cursor
-      undefined, // limit
-      undefined, // teamMemberId
+    const response = await client.bookings.list({
       locationId,
-      startOfDay.toISOString(),
-      endOfDay.toISOString()
-    );
+      startAtMin: startOfDay.toISOString(),
+      startAtMax: endOfDay.toISOString(),
+    });
 
     const occupied: OccupiedSlot[] = [];
-    const bookings = response.result.bookings || [];
+    const bookings = response.bookings || [];
     console.log(`SQUARE: Found ${bookings.length} existing booking(s) on ${date}`);
 
     for (const booking of bookings) {

@@ -133,11 +133,31 @@ export function registerPetCalendarRoutes(app: Express) {
       const months = await storage.getPetCalendarMonths(id);
       const generatedCount = await storage.getGeneratedMonthCount(id);
 
+      // Detect stuck calendars: "generating" for >10 min with 0 generated months
+      // This handles orphaned generation from a previous deploy
+      let status = calendar.status;
+      if (status === "generating" && generatedCount === 0 && calendar.createdAt) {
+        const ageMs = Date.now() - new Date(calendar.createdAt).getTime();
+        const TEN_MINUTES = 10 * 60 * 1000;
+        if (ageMs > TEN_MINUTES) {
+          console.log(`CALENDAR[${id}]: Stuck in "generating" for ${Math.round(ageMs / 60000)}min with 0 months — re-triggering`);
+          // Reset to pending and re-trigger generation
+          await storage.updatePetCalendarStatus(id, "pending");
+          status = "pending";
+
+          // Re-trigger generation with stored photo data
+          const photoBuffer = Buffer.from(calendar.photoData, "base64");
+          generateMonthImages(id, calendar.petName, calendar.petType, photoBuffer).catch((err) => {
+            console.error(`CALENDAR[${id}]: Re-triggered generation failed:`, err);
+          });
+        }
+      }
+
       res.json({
         id: calendar.id,
         petName: calendar.petName,
         petType: calendar.petType,
-        status: calendar.status,
+        status,
         generatedCount,
         totalMonths: 12,
         months: months.sort((a, b) => a.month - b.month),
