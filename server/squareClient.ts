@@ -49,100 +49,63 @@ export interface SquareAppointmentData {
 }
 
 /**
- * Create an appointment in Square Bookings API.
- * Puts all service/add-on/pet details into the appointment note
- * since we're using fixed time slots rather than Square's service catalog.
+ * Create an appointment record in Square.
+ *
+ * This account does not have bookable services configured in the Square catalog,
+ * so the Bookings API (which requires serviceVariationId) cannot be used.
+ * Instead we create a detailed customer note that staff can see in Square Dashboard.
+ *
+ * The note format is designed to be scannable in the Square customer profile:
+ *   ★ ONLINE BOOKING — [date] at [time]
+ *   Service / Pet / Price / Deposit info
  */
 export async function createSquareAppointment(
   data: SquareAppointmentData
 ): Promise<string> {
   const client = getSquareClient();
-  const locationId = getSquareLocationId();
 
-  // Build a descriptive note for the Square appointment
+  // Format time for readability
+  const [h, m] = data.time.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const displayHour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  const displayTime = `${displayHour}:${m.toString().padStart(2, "0")} ${ampm}`;
+
   const noteLines = [
+    `★ ONLINE BOOKING — ${data.date} at ${displayTime}`,
     `Service: ${data.serviceName}`,
     data.addOns.length > 0 ? `Add-ons: ${data.addOns.join(", ")}` : null,
     `Pet: ${data.petName}${data.petBreed ? ` (${data.petBreed})` : ""}`,
-    `Total Price: $${data.totalPrice}`,
-    `Deposit Paid: $${data.depositAmount} (non-refundable, via Stripe)`,
-    `Remaining Balance: $${data.totalPrice - data.depositAmount}`,
+    `Total: $${data.totalPrice}`,
+    data.depositAmount > 0
+      ? `Deposit: $${data.depositAmount} paid (non-refundable) | Remaining: $${data.totalPrice - data.depositAmount}`
+      : `No deposit collected`,
     data.notes ? `Notes: ${data.notes}` : null,
-    `Booked online via bellyscrubs.com`,
+    `— booked via bellyscrubs.com`,
   ]
     .filter(Boolean)
     .join("\n");
 
-  // Parse date and time into ISO 8601 format
-  const [year, month, day] = data.date.split("-").map(Number);
-  const [hour, minute] = data.time.split(":").map(Number);
-  const startAt = new Date(year, month - 1, day, hour, minute);
-  // Default 2-hour appointment block for grooming
-  const endMinutes = 120;
-
   try {
-    console.log(`SQUARE: Creating appointment for ${data.petName} on ${data.date} at ${data.time}`);
+    console.log(`SQUARE: Creating customer note for ${data.petName} on ${data.date} at ${data.time}`);
 
-    // First, search for or create the customer in Square
     const customerId = await findOrCreateSquareCustomer(
       data.customerName,
       data.customerEmail,
       data.customerPhone
     );
 
-    console.log(`SQUARE: Customer resolved: ${customerId}, creating booking...`);
-    const response = await client.bookings.create({
-      booking: {
-        startAt: startAt.toISOString(),
-        locationId,
-        customerId,
-        customerNote: noteLines,
-        appointmentSegments: [
-          {
-            durationMinutes: endMinutes,
-            teamMemberId: "anyone",
-          },
-        ],
-      },
-      idempotencyKey: `belly-scrubs-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+    await client.customers.update({
+      customerId,
+      note: noteLines,
     });
 
-    const bookingId = response.booking?.id;
-    if (!bookingId) {
-      throw new Error("Square did not return a booking ID");
-    }
-
-    log(`Square appointment created: ${bookingId}`, "square");
-    return bookingId;
+    console.log(`SQUARE: Customer note created for ${data.customerName} (${customerId})`);
+    log(`Square customer note created: ${customerId} — ${data.date} ${data.time}`, "square");
+    return `customer-note-${customerId}`;
   } catch (error: any) {
-    // If the Bookings API isn't available (requires Square Appointments subscription),
-    // fall back to creating a simple note via the Customers API
-    console.error("SQUARE: Bookings API error:", error.message, error.body || "");
-    log(`Square Bookings API error: ${error.message}`, "square");
-
-    // Fallback: Create as a customer note if Bookings API fails
-    try {
-      console.log("SQUARE: Falling back to customer note...");
-      const customerId = await findOrCreateSquareCustomer(
-        data.customerName,
-        data.customerEmail,
-        data.customerPhone
-      );
-
-      // Update customer with appointment note
-      await client.customers.update({
-        customerId,
-        note: `UPCOMING APPOINTMENT - ${data.date} at ${data.time}\n${noteLines}`,
-      });
-
-      console.log(`SQUARE: Customer note created for: ${customerId}`);
-      log(`Square customer note created for: ${customerId}`, "square");
-      return `customer-note-${customerId}`;
-    } catch (fallbackError: any) {
-      console.error("SQUARE: Fallback (customer note) also failed:", fallbackError.message);
-      log(`Square fallback error: ${fallbackError.message}`, "square");
-      throw new Error(`Failed to create Square appointment: ${error.message}`);
-    }
+    console.error("SQUARE: Customer note creation failed:", error.message);
+    log(`Square customer note error: ${error.message}`, "square");
+    throw new Error(`Failed to create Square record: ${error.message}`);
   }
 }
 
@@ -274,197 +237,24 @@ export async function listSquareTeamMembers(): Promise<SquareTeamMember[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Service Catalog Lookup
-// ---------------------------------------------------------------------------
-
-/** Cached service variation ID — looked up once at startup */
-let cachedServiceVariationId: string | null = null;
-
-/**
- * Find a bookable service variation in the Square catalog.
- * searchAvailability requires a serviceVariationId, so we look up whatever
- * service is configured in Square Appointments for this location.
- */
-export async function lookupSquareServiceVariation(): Promise<string | null> {
-  if (cachedServiceVariationId) return cachedServiceVariationId;
-
-  const client = getSquareClient();
-
-  try {
-    console.log("SQUARE: Looking up bookable service variations in catalog...");
-    const response = await client.catalog.search({
-      objectTypes: ["ITEM_VARIATION"],
-      query: {
-        exactQuery: {
-          attributeName: "is_bookable",
-          attributeValue: "true",
-        },
-      },
-    });
-
-    // If exact query doesn't return results, list all ITEM types and check
-    let variationId: string | null = null;
-
-    if (response.objects && response.objects.length > 0) {
-      const obj = response.objects[0];
-      variationId = obj.id || null;
-      console.log(`SQUARE: Found bookable service variation: ${variationId} (${obj.type})`);
-    }
-
-    if (!variationId) {
-      // Fallback: search for ITEM type objects that look like services
-      console.log("SQUARE: No bookable variation found via exact query, trying item search...");
-      const itemPage = await client.catalog.list({
-        types: "ITEM",
-      });
-
-      for (const item of itemPage.data || []) {
-        const variations = (item as any).itemData?.variations;
-        if (variations && variations.length > 0) {
-          // Check if any variation is bookable (has serviceDuration set)
-          for (const v of variations) {
-            const vData = v.itemVariationData;
-            if (vData?.serviceDuration || vData?.availableForBooking) {
-              variationId = v.id;
-              console.log(`SQUARE: Found service variation via catalog scan: ${variationId} (${vData?.name || "unnamed"})`);
-              break;
-            }
-          }
-          if (variationId) break;
-        }
-      }
-    }
-
-    if (variationId) {
-      cachedServiceVariationId = variationId;
-      console.log(`SQUARE: Service variation ID cached: ${variationId}`);
-    } else {
-      console.log("SQUARE: No bookable service variation found in catalog — searchAvailability won't be usable");
-    }
-
-    return variationId;
-  } catch (error: any) {
-    console.error("SQUARE: Service catalog lookup failed:", error.message);
-    log(`Square catalog lookup error: ${error.message}`, "square");
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// searchAvailability — the primary availability check
-// ---------------------------------------------------------------------------
-
-export interface SquareAvailableSlot {
-  time: string;                // "HH:MM" fixed slot time
-  teamMemberIds: string[];     // team members available at this slot
-}
-
-/**
- * Use Square's searchAvailability API to get REAL available time windows.
- * This is the single source of truth — it accounts for:
- *   - All existing appointments (API-created AND manually-created)
- *   - Team member schedules, days off, modified hours
- *   - Business hours and booking rules
- *
- * Returns which of our fixed slots have availability and which team members
- * are free at each slot. Returns null if searchAvailability can't be used
- * (e.g. no service variation configured), signaling caller to use fallback.
- */
-export async function getSquareAvailability(
-  date: string,
-  teamMemberIds?: string[],
-): Promise<SquareAvailableSlot[] | null> {
-  const client = getSquareClient();
-  const locationId = getSquareLocationId();
-  const serviceVariationId = await lookupSquareServiceVariation();
-
-  if (!serviceVariationId) {
-    console.log("SQUARE: searchAvailability skipped — no serviceVariationId");
-    return null;
-  }
-
-  const [year, month, day] = date.split("-").map(Number);
-  // searchAvailability needs a range of at least 24 hours
-  const startAt = new Date(year, month - 1, day, 0, 0, 0).toISOString();
-  const endAt = new Date(year, month - 1, day + 1, 0, 0, 0).toISOString();
-
-  try {
-    console.log(`SQUARE: searchAvailability for ${date}, service=${serviceVariationId}, ` +
-      `teamMembers=${teamMemberIds ? teamMemberIds.join(",") : "any"}`);
-
-    const segmentFilter: any = {
-      serviceVariationId,
-    };
-    if (teamMemberIds && teamMemberIds.length > 0) {
-      segmentFilter.teamMemberIdFilter = { any: teamMemberIds };
-    }
-
-    const response = await client.bookings.searchAvailability({
-      query: {
-        filter: {
-          startAtRange: { startAt, endAt },
-          locationId,
-          segmentFilters: [segmentFilter],
-        },
-      },
-    });
-
-    const availabilities = response.availabilities || [];
-    console.log(`SQUARE: searchAvailability returned ${availabilities.length} available window(s) on ${date}`);
-
-    // Map Square's available windows to our fixed slots
-    const result: SquareAvailableSlot[] = [];
-
-    for (const fixedSlot of FIXED_SLOTS) {
-      const slotStartMinutes = fixedSlot.minutes;
-      const teamMembersAtSlot: string[] = [];
-
-      for (const avail of availabilities) {
-        if (!avail.startAt) continue;
-        const availTime = new Date(avail.startAt);
-        const availMinutes = availTime.getHours() * 60 + availTime.getMinutes();
-
-        // An availability window matches our fixed slot if it starts at the slot time
-        // (Square returns individual start times, not ranges)
-        if (availMinutes === slotStartMinutes) {
-          // Collect team member IDs from appointment segments
-          for (const seg of avail.appointmentSegments || []) {
-            if (seg.teamMemberId && seg.teamMemberId !== "anyone") {
-              teamMembersAtSlot.push(seg.teamMemberId);
-            }
-          }
-        }
-      }
-
-      result.push({
-        time: fixedSlot.time,
-        teamMemberIds: teamMembersAtSlot,
-      });
-    }
-
-    for (const slot of result) {
-      console.log(`SQUARE: slot ${slot.time} → ${slot.teamMemberIds.length} available team member(s): [${slot.teamMemberIds.join(", ")}]`);
-    }
-
-    return result;
-  } catch (error: any) {
-    console.error(`SQUARE: searchAvailability failed for ${date}:`, error.message);
-    log(`Square searchAvailability error: ${error.message}`, "square");
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// getSquareOccupiedSlots — FALLBACK when searchAvailability is unavailable
+// getSquareOccupiedSlots — check existing bookings for a date
 // ---------------------------------------------------------------------------
 
 /**
  * Check Square for existing appointments on a given date using bookings.list().
- * Returns occupied slot info including which team member is booked.
+ * Returns occupied slot info including which team member is booked, so the
+ * availability endpoint can do per-groomer checks.
  *
- * NOTE: This is the FALLBACK method. bookings.list() may not return manually-
- * created appointments (only API-created ones). Prefer getSquareAvailability()
- * which uses searchAvailability and accounts for ALL appointments + schedules.
+ * KNOWN LIMITATION: bookings.list() returns bookings created through the API
+ * and through the Square Appointments app. However, ad-hoc schedule changes
+ * (days off, modified hours) are NOT reflected here — those are handled by
+ * the hardcoded groomer schedules in groomerConfig.ts. If a groomer takes an
+ * unplanned day off, staff should manually mark those slots in Square to
+ * create blocking bookings, or the hardcoded schedule should be updated.
+ *
+ * Square's searchAvailability API would handle this automatically, but it
+ * requires bookable service variations in the catalog which this account
+ * does not have configured.
  */
 export async function getSquareOccupiedSlots(date: string): Promise<OccupiedSlot[]> {
   const client = getSquareClient();
@@ -475,7 +265,7 @@ export async function getSquareOccupiedSlots(date: string): Promise<OccupiedSlot
   const endOfDay = new Date(year, month - 1, day, 23, 59, 59);
 
   try {
-    console.log(`SQUARE: [FALLBACK] Checking occupied slots via bookings.list for ${date}`);
+    console.log(`SQUARE: Checking occupied slots via bookings.list for ${date}`);
     const page = await client.bookings.list({
       locationId,
       startAtMin: startOfDay.toISOString(),
@@ -484,7 +274,7 @@ export async function getSquareOccupiedSlots(date: string): Promise<OccupiedSlot
 
     const occupied: OccupiedSlot[] = [];
     const bookings = page.data || [];
-    console.log(`SQUARE: [FALLBACK] Found ${bookings.length} booking(s) on ${date}`);
+    console.log(`SQUARE: Found ${bookings.length} booking(s) on ${date}`);
 
     for (const booking of bookings) {
       if (booking.status === "CANCELLED_BY_CUSTOMER" || booking.status === "CANCELLED_BY_SELLER") {
@@ -518,7 +308,7 @@ export async function getSquareOccupiedSlots(date: string): Promise<OccupiedSlot
 
     return occupied;
   } catch (error: any) {
-    console.error(`SQUARE: [FALLBACK] Availability check failed for ${date}:`, error.message);
+    console.error(`SQUARE: Availability check failed for ${date}:`, error.message);
     log(`Square availability check error: ${error.message}`, "square");
     return [];
   }

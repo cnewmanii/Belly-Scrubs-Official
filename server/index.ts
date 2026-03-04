@@ -75,7 +75,7 @@ async function initSquare() {
 
   // Look up team members and map to groomers
   try {
-    const { listSquareTeamMembers, lookupSquareServiceVariation } = require("./squareClient") as typeof import("./squareClient");
+    const { listSquareTeamMembers } = require("./squareClient") as typeof import("./squareClient");
     const { populateTeamMemberIds } = require("./groomerConfig") as typeof import("./groomerConfig");
 
     const teamMembers = await listSquareTeamMembers();
@@ -87,16 +87,10 @@ async function initSquare() {
       log("Square: No team members found — groomer IDs will remain unmapped");
     }
 
-    // Pre-cache the service variation ID for searchAvailability
-    const svcVariation = await lookupSquareServiceVariation();
-    if (svcVariation) {
-      log(`Square service variation ready: ${svcVariation} — searchAvailability will be used`);
-    } else {
-      log("Square: No bookable service variation found — will use fallback availability");
-    }
+    log("Square: Using hardcoded groomer schedules + bookings.list() for availability");
   } catch (err: any) {
     console.error("SQUARE: Startup initialization error:", err.message);
-    log(`Square startup error: ${err.message} — availability will use fallback`);
+    log(`Square startup error: ${err.message} — availability will use hardcoded schedules only`);
   }
 }
 
