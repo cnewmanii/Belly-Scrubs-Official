@@ -189,14 +189,17 @@ export default function Book() {
   const loadSlots = useCallback(async (date: Date) => {
     setSlotsLoading(true);
     try {
-      const result = await calendarProvider.listAvailability(date);
+      const result = await calendarProvider.listAvailability(date, {
+        serviceId: selectedService?.id,
+        petSize: selectedSize?.size,
+      });
       setSlots(result);
     } catch {
       setSlots([]);
     } finally {
       setSlotsLoading(false);
     }
-  }, []);
+  }, [selectedService, selectedSize]);
 
   useEffect(() => {
     if (selectedDate) loadSlots(selectedDate);
