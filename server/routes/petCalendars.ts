@@ -2,11 +2,35 @@ import type { Express, Request, Response } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import OpenAI from "openai";
-import { toFile } from "openai";
-import pLimit from "p-limit";
 import { storage } from "../storage";
 import { stripeEnabled } from "../index";
+
+// CJS-compatible import for openai (ESM default import breaks in esbuild CJS output)
+const openaiPkg = require("openai") as typeof import("openai");
+const { OpenAI, toFile } = openaiPkg;
+
+// p-limit is ESM-only — replace with a simple concurrency limiter
+function pLimit(concurrency: number) {
+  let active = 0;
+  const queue: Array<() => void> = [];
+
+  return <T>(fn: () => Promise<T>): Promise<T> => {
+    return new Promise<T>((resolve, reject) => {
+      const run = () => {
+        active++;
+        fn().then(resolve, reject).finally(() => {
+          active--;
+          if (queue.length > 0) queue.shift()!();
+        });
+      };
+      if (active < concurrency) {
+        run();
+      } else {
+        queue.push(run);
+      }
+    });
+  };
+}
 
 function getOpenAIClient() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -99,6 +123,10 @@ async function generateMonthImages(calendarId: number, petName: string, petType:
   }
 }
 
+// Track last retry attempt per calendar to prevent retry spam (every 3s poll)
+const lastRetryAttempt = new Map<number, number>();
+const RETRY_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
 export function registerPetCalendarRoutes(app: Express) {
   app.post("/api/pet-calendars", upload.single("photo"), async (req: Request, res: Response) => {
     try {
@@ -139,8 +167,13 @@ export function registerPetCalendarRoutes(app: Express) {
       if (status === "generating" && generatedCount === 0 && calendar.createdAt) {
         const ageMs = Date.now() - new Date(calendar.createdAt).getTime();
         const TEN_MINUTES = 10 * 60 * 1000;
-        if (ageMs > TEN_MINUTES) {
+        const lastAttempt = lastRetryAttempt.get(id) || 0;
+        const timeSinceRetry = Date.now() - lastAttempt;
+
+        if (ageMs > TEN_MINUTES && timeSinceRetry > RETRY_COOLDOWN_MS) {
           console.log(`CALENDAR[${id}]: Stuck in "generating" for ${Math.round(ageMs / 60000)}min with 0 months — re-triggering`);
+          lastRetryAttempt.set(id, Date.now());
+
           // Reset to pending and re-trigger generation
           await storage.updatePetCalendarStatus(id, "pending");
           status = "pending";
@@ -150,6 +183,8 @@ export function registerPetCalendarRoutes(app: Express) {
           generateMonthImages(id, calendar.petName, calendar.petType, photoBuffer).catch((err) => {
             console.error(`CALENDAR[${id}]: Re-triggered generation failed:`, err);
           });
+        } else if (ageMs > TEN_MINUTES) {
+          console.log(`CALENDAR[${id}]: Stuck but retry cooldown active (${Math.round(timeSinceRetry / 1000)}s / ${RETRY_COOLDOWN_MS / 1000}s) — skipping`);
         }
       }
 
