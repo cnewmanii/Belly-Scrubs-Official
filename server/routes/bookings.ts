@@ -525,7 +525,7 @@ export function registerBookingRoutes(app: Express) {
 
 async function sendBookingEmails(bookingId: string, photoFilePath: string, approvalToken: string) {
   if (!emailEnabled) {
-    console.warn("EMAIL SKIPPED: SMTP_USER/SMTP_PASS not configured — booking notifications not sent for", bookingId);
+    console.warn("EMAIL SKIPPED: RESEND_API_KEY not configured — booking notifications not sent for", bookingId);
     log("Email not configured, skipping booking notifications", "email");
     return;
   }
