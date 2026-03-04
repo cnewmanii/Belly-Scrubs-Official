@@ -51,13 +51,12 @@ export interface SquareAppointmentData {
 /**
  * Create an appointment record in Square.
  *
- * This account does not have bookable services configured in the Square catalog,
- * so the Bookings API (which requires serviceVariationId) cannot be used.
- * Instead we create a detailed customer note that staff can see in Square Dashboard.
+ * IMPORTANT: This creates a CUSTOMER NOTE, not a calendar appointment.
+ * The Bookings API requires serviceVariationId (bookable catalog services)
+ * which this account does not have configured. Customer notes appear on the
+ * customer's profile in Square Dashboard but NOT on the Appointments calendar.
  *
- * The note format is designed to be scannable in the Square customer profile:
- *   ★ ONLINE BOOKING — [date] at [time]
- *   Service / Pet / Price / Deposit info
+ * Staff must manually add the appointment to the Square calendar after approval.
  */
 export async function createSquareAppointment(
   data: SquareAppointmentData
@@ -71,7 +70,9 @@ export async function createSquareAppointment(
   const displayTime = `${displayHour}:${m.toString().padStart(2, "0")} ${ampm}`;
 
   const noteLines = [
-    `★ ONLINE BOOKING — ${data.date} at ${displayTime}`,
+    `★ ONLINE BOOKING - NEEDS CALENDAR ENTRY`,
+    `Date: ${data.date} at ${displayTime}`,
+    `Customer: ${data.customerName} | ${data.customerPhone}`,
     `Service: ${data.serviceName}`,
     data.addOns.length > 0 ? `Add-ons: ${data.addOns.join(", ")}` : null,
     `Pet: ${data.petName}${data.petBreed ? ` (${data.petBreed})` : ""}`,
@@ -80,13 +81,14 @@ export async function createSquareAppointment(
       ? `Deposit: $${data.depositAmount} paid (non-refundable) | Remaining: $${data.totalPrice - data.depositAmount}`
       : `No deposit collected`,
     data.notes ? `Notes: ${data.notes}` : null,
-    `— booked via bellyscrubs.com`,
+    `— booked online via bellyscrubs.com`,
   ]
     .filter(Boolean)
     .join("\n");
 
   try {
     console.log(`SQUARE: Creating customer note for ${data.petName} on ${data.date} at ${data.time}`);
+    console.log(`SQUARE: NOTE: This creates a customer note, NOT a calendar appointment. Staff must manually add this to the Square calendar.`);
 
     const customerId = await findOrCreateSquareCustomer(
       data.customerName,
@@ -100,7 +102,8 @@ export async function createSquareAppointment(
     });
 
     console.log(`SQUARE: Customer note created for ${data.customerName} (${customerId})`);
-    log(`Square customer note created: ${customerId} — ${data.date} ${data.time}`, "square");
+    console.log(`SQUARE: ⚠ REMINDER: Staff must manually create a calendar entry in Square Appointments for ${data.date} at ${displayTime}`);
+    log(`Square customer note created: ${customerId} — ${data.date} ${data.time} (needs manual calendar entry)`, "square");
     return `customer-note-${customerId}`;
   } catch (error: any) {
     console.error("SQUARE: Customer note creation failed:", error.message);
@@ -240,50 +243,93 @@ export async function listSquareTeamMembers(): Promise<SquareTeamMember[]> {
 // getSquareOccupiedSlots — check existing bookings for a date
 // ---------------------------------------------------------------------------
 
+// Hurricane, WV is Eastern Time (UTC-5 standard, UTC-4 DST).
+// Square stores times in UTC, so we need to query a wide enough UTC window
+// to capture all local-day bookings regardless of DST.
+// Using UTC midnight-4h to next-day midnight-4h covers EDT (UTC-4).
+// Using UTC midnight-5h to next-day midnight-5h covers EST (UTC-5).
+// We use the wider window (midnight-5h to next-midnight-4h) to cover both.
+const ET_OFFSET_HOURS_EARLIEST = -5; // EST (standard time)
+const ET_OFFSET_HOURS_LATEST = -4;   // EDT (daylight saving)
+
 /**
  * Check Square for existing appointments on a given date using bookings.list().
  * Returns occupied slot info including which team member is booked, so the
  * availability endpoint can do per-groomer checks.
  *
- * KNOWN LIMITATION: bookings.list() returns bookings created through the API
- * and through the Square Appointments app. However, ad-hoc schedule changes
- * (days off, modified hours) are NOT reflected here — those are handled by
- * the hardcoded groomer schedules in groomerConfig.ts. If a groomer takes an
- * unplanned day off, staff should manually mark those slots in Square to
- * create blocking bookings, or the hardcoded schedule should be updated.
- *
- * Square's searchAvailability API would handle this automatically, but it
- * requires bookable service variations in the catalog which this account
- * does not have configured.
+ * Handles pagination (Square defaults to ~100 per page) and converts UTC
+ * booking times to Eastern Time for slot matching.
  */
 export async function getSquareOccupiedSlots(date: string): Promise<OccupiedSlot[]> {
   const client = getSquareClient();
   const locationId = getSquareLocationId();
 
   const [year, month, day] = date.split("-").map(Number);
-  const startOfDay = new Date(year, month - 1, day, 0, 0, 0);
-  const endOfDay = new Date(year, month - 1, day, 23, 59, 59);
+
+  // Build a UTC time range that fully covers the local Eastern Time day.
+  // Local midnight ET = UTC 04:00 (EDT) or UTC 05:00 (EST).
+  // To be safe, start from the earlier UTC equivalent (05:00 = EST midnight)
+  // and end at the later next-day equivalent (04:00 next day = EDT midnight).
+  const startAtUTC = new Date(Date.UTC(year, month - 1, day, -ET_OFFSET_HOURS_EARLIEST, 0, 0));
+  const endAtUTC = new Date(Date.UTC(year, month - 1, day + 1, -ET_OFFSET_HOURS_LATEST, 0, 0));
 
   try {
-    console.log(`SQUARE: Checking occupied slots via bookings.list for ${date}`);
-    const page = await client.bookings.list({
-      locationId,
-      startAtMin: startOfDay.toISOString(),
-      startAtMax: endOfDay.toISOString(),
-    });
+    console.log(`SQUARE: Checking occupied slots for ${date} (UTC range: ${startAtUTC.toISOString()} to ${endAtUTC.toISOString()})`);
+
+    // Fetch ALL pages of bookings for this date
+    const allBookings: any[] = [];
+    let cursor: string | undefined;
+
+    do {
+      const page = await client.bookings.list({
+        locationId,
+        startAtMin: startAtUTC.toISOString(),
+        startAtMax: endAtUTC.toISOString(),
+        limit: 100,
+        ...(cursor ? { cursor } : {}),
+      });
+
+      const pageBookings = page.data || [];
+      allBookings.push(...pageBookings);
+
+      // Get cursor for next page from the raw response
+      cursor = (page as any).response?.cursor || undefined;
+
+      if (cursor) {
+        console.log(`SQUARE: Fetched page with ${pageBookings.length} booking(s), more pages available...`);
+      }
+    } while (cursor);
+
+    console.log(`SQUARE: Found ${allBookings.length} total booking(s) on ${date} (across all pages)`);
 
     const occupied: OccupiedSlot[] = [];
-    const bookings = page.data || [];
-    console.log(`SQUARE: Found ${bookings.length} booking(s) on ${date}`);
 
-    for (const booking of bookings) {
+    for (const booking of allBookings) {
+      // Skip cancelled bookings, but include ALL other statuses
+      // (PENDING, ACCEPTED, CONFIRMED, etc.)
       if (booking.status === "CANCELLED_BY_CUSTOMER" || booking.status === "CANCELLED_BY_SELLER") {
+        console.log(`SQUARE:   [skip] id=${booking.id} status=${booking.status}`);
         continue;
       }
 
       if (booking.startAt) {
-        const startTime = new Date(booking.startAt);
-        const bookingStartMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+        const startTimeUTC = new Date(booking.startAt);
+
+        // Convert UTC to Eastern Time for local slot matching.
+        // Determine if date falls in DST: rough check — DST is March second Sun to Nov first Sun.
+        // For simplicity, use the JS locale conversion which handles DST correctly.
+        const localTimeStr = startTimeUTC.toLocaleString("en-US", { timeZone: "America/New_York" });
+        const localTime = new Date(localTimeStr);
+        const localHour = localTime.getHours();
+        const localMinute = localTime.getMinutes();
+        const bookingStartMinutes = localHour * 60 + localMinute;
+
+        // Also verify this booking is actually on the requested local date
+        const localDateStr = localTime.toISOString().split("T")[0];
+        const localY = localTime.getFullYear();
+        const localM = String(localTime.getMonth() + 1).padStart(2, "0");
+        const localD = String(localTime.getDate()).padStart(2, "0");
+        const bookingLocalDate = `${localY}-${localM}-${localD}`;
 
         // Get duration and team member from appointment segments
         let durationMinutes = 120; // default 2 hours
@@ -295,6 +341,18 @@ export async function getSquareOccupiedSlots(date: string): Promise<OccupiedSlot
             teamMemberId = tmId;
           }
         }
+
+        const displayTime = `${localHour.toString().padStart(2, "0")}:${localMinute.toString().padStart(2, "0")}`;
+        console.log(`SQUARE:   booking id=${booking.id} status=${booking.status} ` +
+          `utc=${booking.startAt} local=${bookingLocalDate} ${displayTime} ` +
+          `duration=${durationMinutes}min team=${teamMemberId || "unassigned"}`);
+
+        // Only count bookings that fall on the requested date (in local time)
+        if (bookingLocalDate !== date) {
+          console.log(`SQUARE:   [skip] booking is on ${bookingLocalDate}, not ${date}`);
+          continue;
+        }
+
         const bookingEndMinutes = bookingStartMinutes + durationMinutes;
 
         for (const slot of FIXED_SLOTS) {
@@ -306,6 +364,7 @@ export async function getSquareOccupiedSlots(date: string): Promise<OccupiedSlot
       }
     }
 
+    console.log(`SQUARE: ${occupied.length} occupied slot(s) on ${date}: ${JSON.stringify(occupied)}`);
     return occupied;
   } catch (error: any) {
     console.error(`SQUARE: Availability check failed for ${date}:`, error.message);
