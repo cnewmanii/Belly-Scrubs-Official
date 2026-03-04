@@ -195,11 +195,17 @@ async function findOrCreateSquareCustomer(
   return customerId;
 }
 
+export interface OccupiedSlot {
+  time: string;            // "HH:MM" fixed slot time
+  teamMemberId?: string;   // Square team member ID if available
+}
+
 /**
  * Check Square for existing appointments on a given date.
- * Returns the start times (as "HH:MM" strings) that are occupied.
+ * Returns occupied slot info including which team member is booked,
+ * so the availability endpoint can do per-groomer availability checks.
  */
-export async function getSquareOccupiedSlots(date: string): Promise<string[]> {
+export async function getSquareOccupiedSlots(date: string): Promise<OccupiedSlot[]> {
   const client = getSquareClient();
   const locationId = getSquareLocationId();
 
@@ -218,7 +224,7 @@ export async function getSquareOccupiedSlots(date: string): Promise<string[]> {
       endOfDay.toISOString()
     );
 
-    const occupiedTimes: string[] = [];
+    const occupied: OccupiedSlot[] = [];
     const bookings = response.result.bookings || [];
     console.log(`SQUARE: Found ${bookings.length} existing booking(s) on ${date}`);
 
@@ -231,10 +237,15 @@ export async function getSquareOccupiedSlots(date: string): Promise<string[]> {
         const startTime = new Date(booking.startAt);
         const bookingStartMinutes = startTime.getHours() * 60 + startTime.getMinutes();
 
-        // Get duration from appointment segments
+        // Get duration and team member from appointment segments
         let durationMinutes = 120; // default 2 hours
+        let teamMemberId: string | undefined;
         if (booking.appointmentSegments && booking.appointmentSegments.length > 0) {
           durationMinutes = Number(booking.appointmentSegments[0].durationMinutes) || 120;
+          const tmId = booking.appointmentSegments[0].teamMemberId;
+          if (tmId && tmId !== "anyone") {
+            teamMemberId = tmId;
+          }
         }
         const bookingEndMinutes = bookingStartMinutes + durationMinutes;
 
@@ -247,18 +258,15 @@ export async function getSquareOccupiedSlots(date: string): Promise<string[]> {
         ];
 
         for (const slot of fixedSlots) {
-          // Each booking slot is 2 hours
           const slotEnd = slot.minutes + 120;
-
-          // Check if the Square booking overlaps with this slot
           if (bookingStartMinutes < slotEnd && bookingEndMinutes > slot.minutes) {
-            occupiedTimes.push(slot.time);
+            occupied.push({ time: slot.time, teamMemberId });
           }
         }
       }
     }
 
-    return [...new Set(occupiedTimes)]; // deduplicate
+    return occupied;
   } catch (error: any) {
     console.error(`SQUARE: Availability check failed for ${date}:`, error.message);
     log(`Square availability check error: ${error.message}`, "square");

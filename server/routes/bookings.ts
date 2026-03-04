@@ -5,7 +5,8 @@ import fs from "fs";
 import { storage } from "../storage";
 import { insertBookingSchema } from "@shared/schema";
 import { stripeEnabled, depositEnabled, emailEnabled } from "../index";
-import { getSquareOccupiedSlots } from "../squareClient";
+import { getSquareOccupiedSlots, type OccupiedSlot } from "../squareClient";
+import { getQualifiedGroomers, isGroomerWorking, getWorkingGroomers, GROOMERS } from "../groomerConfig";
 import { log } from "../index";
 import { randomUUID } from "crypto";
 
@@ -117,10 +118,13 @@ export function registerBookingRoutes(app: Express) {
 
   app.get("/api/availability", async (req: Request, res: Response) => {
     try {
-      const { date } = req.query;
+      const { date, serviceId, petSize } = req.query;
       if (!date || typeof date !== "string") {
         return res.status(400).json({ error: "Missing date parameter (YYYY-MM-DD)" });
       }
+
+      const svcId = typeof serviceId === "string" ? serviceId : undefined;
+      const size = typeof petSize === "string" ? petSize : undefined;
 
       const [year, month, day] = date.split("-").map(Number);
       const requestedDate = new Date(year, month - 1, day);
@@ -133,11 +137,18 @@ export function registerBookingRoutes(app: Express) {
       today.setHours(0, 0, 0, 0);
       if (requestedDate < today) return res.json({ date, slots: [] });
 
-      let occupiedTimes: string[] = [];
+      // Determine which groomers can handle this service+size
+      const qualifiedGroomers = svcId
+        ? getQualifiedGroomers(svcId, size)
+        : GROOMERS; // no service filter → all groomers
+      const workingToday = getWorkingGroomers(date);
+
+      // Fetch Square bookings for this date
+      let occupiedSlots: OccupiedSlot[] = [];
       try {
-        occupiedTimes = await getSquareOccupiedSlots(date);
-        if (occupiedTimes.length > 0) {
-          console.log(`SQUARE: Occupied slots on ${date}: ${occupiedTimes.join(", ")}`);
+        occupiedSlots = await getSquareOccupiedSlots(date);
+        if (occupiedSlots.length > 0) {
+          console.log(`SQUARE: Occupied slots on ${date}: ${JSON.stringify(occupiedSlots)}`);
         }
       } catch (err: any) {
         console.error(`SQUARE: Availability check failed for ${date}:`, err.message);
@@ -146,6 +157,10 @@ export function registerBookingRoutes(app: Express) {
 
       const now = Date.now();
       const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+      console.log(`AVAILABILITY: date=${date}, service=${svcId || "any"}, size=${size || "any"}, ` +
+        `qualified=[${qualifiedGroomers.map(g => g.id).join(",")}], ` +
+        `workingToday=[${workingToday.map(g => g.id).join(",")}]`);
 
       const slots = FIXED_SLOTS
         .filter((slot) => {
@@ -159,12 +174,46 @@ export function registerBookingRoutes(app: Express) {
 
           return true;
         })
-        .map((slot) => ({
-          id: `${date}-${slot.time.replace(":", "")}`,
-          startTime: slot.time,
-          endTime: `${(parseInt(slot.time.split(":")[0], 10) + 2).toString().padStart(2, "0")}:00`,
-          available: !occupiedTimes.includes(slot.time),
-        }));
+        .map((slot) => {
+          // Find qualified groomers who are working at this specific time
+          const availableAtSlot = qualifiedGroomers.filter((g) =>
+            isGroomerWorking(g.id, date, slot.time)
+          );
+
+          // Count how many of those are already booked at this slot in Square
+          const bookingsAtSlot = occupiedSlots.filter((o) => o.time === slot.time);
+          let bookedCount = 0;
+
+          if (bookingsAtSlot.length > 0) {
+            for (const occ of bookingsAtSlot) {
+              if (occ.teamMemberId) {
+                // Precise: only count if the booked team member is one of our qualified groomers
+                const matchesQualified = availableAtSlot.some(
+                  (g) => g.squareTeamMemberId === occ.teamMemberId
+                );
+                if (matchesQualified) bookedCount++;
+              } else {
+                // No team member info — conservatively count as one qualified groomer booked
+                bookedCount++;
+              }
+            }
+          }
+
+          const freeGroomers = availableAtSlot.length - bookedCount;
+          const available = freeGroomers > 0;
+
+          console.log(`AVAILABILITY: slot=${slot.time}, ` +
+            `qualifiedWorking=[${availableAtSlot.map(g => g.id).join(",")}], ` +
+            `bookingsAtSlot=${bookingsAtSlot.length}, bookedCount=${bookedCount}, ` +
+            `freeGroomers=${freeGroomers}, available=${available}`);
+
+          return {
+            id: `${date}-${slot.time.replace(":", "")}`,
+            startTime: slot.time,
+            endTime: `${(parseInt(slot.time.split(":")[0], 10) + 2).toString().padStart(2, "0")}:00`,
+            available,
+          };
+        });
 
       return res.json({ date, slots });
     } catch (err) {

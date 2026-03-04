@@ -5,8 +5,13 @@ export interface TimeSlot {
   available: boolean;
 }
 
+export interface AvailabilityParams {
+  serviceId?: string;
+  petSize?: string;
+}
+
 export interface CalendarProvider {
-  listAvailability(date: Date): Promise<TimeSlot[]>;
+  listAvailability(date: Date, params?: AvailabilityParams): Promise<TimeSlot[]>;
   createHold(slotId: string): Promise<{ holdId: string }>;
   releaseHold(holdId: string): Promise<void>;
 }
@@ -19,10 +24,13 @@ export interface CalendarProvider {
 export class ApiCalendarProvider implements CalendarProvider {
   private holds: Map<string, string> = new Map();
 
-  async listAvailability(date: Date): Promise<TimeSlot[]> {
+  async listAvailability(date: Date, params?: AvailabilityParams): Promise<TimeSlot[]> {
     const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD
     try {
-      const response = await fetch(`/api/availability?date=${dateStr}`);
+      const qs = new URLSearchParams({ date: dateStr });
+      if (params?.serviceId) qs.set("serviceId", params.serviceId);
+      if (params?.petSize) qs.set("petSize", params.petSize);
+      const response = await fetch(`/api/availability?${qs.toString()}`);
       if (!response.ok) {
         throw new Error(`Availability API returned ${response.status}`);
       }
