@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import dns from "dns";
 import { log } from "./index";
 import type { Booking } from "@shared/schema";
 
@@ -11,9 +12,27 @@ function getTransporter(): nodemailer.Transporter {
     if (!smtpUser || !smtpPass) {
       console.warn("EMAIL: SMTP_USER or SMTP_PASS not set — emails will fail");
     }
-    const host = process.env.SMTP_HOST || "smtp.office365.com";
+    const rawHost = process.env.SMTP_HOST || "smtp.office365.com";
+    const host = rawHost.trim(); // strip invisible chars
     const port = parseInt(process.env.SMTP_PORT || "587", 10);
+
+    // Log exact host value for debugging DNS issues
+    console.log(`EMAIL: SMTP_HOST raw value: "${rawHost}" (length=${rawHost.length})`);
+    if (rawHost !== host) {
+      console.warn(`EMAIL: SMTP_HOST had whitespace/invisible chars — trimmed to "${host}" (length=${host.length})`);
+    }
     console.log(`EMAIL: Creating SMTP transport → ${host}:${port} (user: ${smtpUser || "NOT SET"})`);
+
+    // Test DNS resolution (non-blocking, just for diagnostics)
+    dns.resolve4(host, (err, addresses) => {
+      if (err) {
+        console.error(`EMAIL: DNS resolution failed for "${host}":`, err.message);
+        console.log(`EMAIL: Hint — if DNS fails, try SMTP_HOST=smtp-mail.outlook.com or smtp.microsoft365.com`);
+      } else {
+        console.log(`EMAIL: DNS resolved "${host}" → ${addresses.join(", ")}`);
+      }
+    });
+
     transporter = nodemailer.createTransport({
       host,
       port,
