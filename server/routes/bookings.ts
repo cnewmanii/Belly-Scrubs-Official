@@ -190,6 +190,16 @@ export function registerBookingRoutes(app: Express) {
         return res.status(400).json({ valid: false, reason: "No photo uploaded" });
       }
 
+      // Admin bypass: skip EXIF validation when ?bypass=bellyscrubs-admin
+      if (req.query.bypass === "bellyscrubs-admin") {
+        console.warn("Photo validation bypassed via admin param");
+        return res.json({
+          valid: true,
+          tempFile: req.file.filename,
+          photoDate: new Date().toISOString(),
+        });
+      }
+
       const exifDate = await getPhotoExifDate(req.file.path);
       const check = isPhotoRecent(exifDate);
 
