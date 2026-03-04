@@ -112,6 +112,44 @@ export const GROOMERS: Groomer[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Runtime: populate Square team member IDs by matching display names
+// ---------------------------------------------------------------------------
+
+/**
+ * Match Square team members to our groomer definitions by first name.
+ * Called once at startup. Logs the mapping for visibility.
+ */
+export function populateTeamMemberIds(
+  squareMembers: Array<{ id: string; displayName: string; givenName?: string }>,
+): void {
+  for (const groomer of GROOMERS) {
+    const nameLower = groomer.displayName.toLowerCase();
+    const match = squareMembers.find((m) => {
+      const given = (m.givenName || "").toLowerCase();
+      const display = m.displayName.toLowerCase();
+      return given === nameLower || display.startsWith(nameLower);
+    });
+
+    if (match) {
+      groomer.squareTeamMemberId = match.id;
+      console.log(`GROOMER MAP: ${groomer.displayName} → ${match.id} (matched "${match.displayName}")`);
+    } else {
+      console.warn(`GROOMER MAP: ${groomer.displayName} → NO MATCH in Square team members`);
+    }
+  }
+
+  const mapped = GROOMERS.filter((g) => g.squareTeamMemberId).length;
+  console.log(`GROOMER MAP: ${mapped}/${GROOMERS.length} groomers mapped to Square team member IDs`);
+}
+
+/**
+ * Get all Square team member IDs that are configured on our groomers.
+ */
+export function getConfiguredTeamMemberIds(): string[] {
+  return GROOMERS.filter((g) => g.squareTeamMemberId).map((g) => g.squareTeamMemberId);
+}
+
+// ---------------------------------------------------------------------------
 // NOT schedulable online (walk-in / admin only)
 // ---------------------------------------------------------------------------
 // - "cat-nail-trim"        → walk-in only
