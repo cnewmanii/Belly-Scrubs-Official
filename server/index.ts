@@ -61,15 +61,42 @@ async function initStripe() {
   console.log("Stripe init complete");
 }
 
-function initSquare() {
+async function initSquare() {
   console.log("Initializing Square...");
   const accessToken = process.env.SQUARE_ACCESS_TOKEN;
   const locationId = process.env.SQUARE_LOCATION_ID;
-  if (accessToken && locationId) {
-    squareEnabled = true;
-    log("Square configured (access token + location ID found)");
-  } else {
+  if (!accessToken || !locationId) {
     log("Square not configured — booking availability will use fallback slots");
+    return;
+  }
+
+  squareEnabled = true;
+  log("Square configured (access token + location ID found)");
+
+  // Look up team members and map to groomers
+  try {
+    const { listSquareTeamMembers, lookupSquareServiceVariation } = require("./squareClient") as typeof import("./squareClient");
+    const { populateTeamMemberIds } = require("./groomerConfig") as typeof import("./groomerConfig");
+
+    const teamMembers = await listSquareTeamMembers();
+    if (teamMembers.length > 0) {
+      const summary = teamMembers.map((m) => `${m.displayName}=${m.id}`).join(", ");
+      log(`Square team members: ${summary}`);
+      populateTeamMemberIds(teamMembers);
+    } else {
+      log("Square: No team members found — groomer IDs will remain unmapped");
+    }
+
+    // Pre-cache the service variation ID for searchAvailability
+    const svcVariation = await lookupSquareServiceVariation();
+    if (svcVariation) {
+      log(`Square service variation ready: ${svcVariation} — searchAvailability will be used`);
+    } else {
+      log("Square: No bookable service variation found — will use fallback availability");
+    }
+  } catch (err: any) {
+    console.error("SQUARE: Startup initialization error:", err.message);
+    log(`Square startup error: ${err.message} — availability will use fallback`);
   }
 }
 
@@ -182,7 +209,7 @@ app.use((req, res, next) => {
 
     // Initialize services
     await initStripe();
-    initSquare();
+    await initSquare();
     depositEnabled = process.env.DEPOSIT_ENABLED === "true";
     log(`Deposit collection: ${depositEnabled ? "ENABLED" : "DISABLED (set DEPOSIT_ENABLED=true to enable)"}`);
     initEmail();
