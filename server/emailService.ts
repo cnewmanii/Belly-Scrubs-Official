@@ -1,57 +1,27 @@
-import nodemailer from "nodemailer";
-import dns from "dns";
+import fs from "fs";
 import { log } from "./index";
 import type { Booking } from "@shared/schema";
 
-let transporter: nodemailer.Transporter | null = null;
+// CJS-compatible import for resend (esbuild outputs CJS)
+const { Resend } = require("resend") as typeof import("resend");
 
-function getTransporter(): nodemailer.Transporter {
-  if (!transporter) {
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    if (!smtpUser || !smtpPass) {
-      console.warn("EMAIL: SMTP_USER or SMTP_PASS not set — emails will fail");
+let resendClient: InstanceType<typeof Resend> | null = null;
+
+function getClient(): InstanceType<typeof Resend> | null {
+  if (!resendClient) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.warn("EMAIL: RESEND_API_KEY not set — emails will be skipped");
+      return null;
     }
-    const rawHost = process.env.SMTP_HOST || "smtp.office365.com";
-    const host = rawHost.trim(); // strip invisible chars
-    const port = parseInt(process.env.SMTP_PORT || "587", 10);
-
-    // Log exact host value for debugging DNS issues
-    console.log(`EMAIL: SMTP_HOST raw value: "${rawHost}" (length=${rawHost.length})`);
-    if (rawHost !== host) {
-      console.warn(`EMAIL: SMTP_HOST had whitespace/invisible chars — trimmed to "${host}" (length=${host.length})`);
-    }
-    console.log(`EMAIL: Creating SMTP transport → ${host}:${port} (user: ${smtpUser || "NOT SET"})`);
-
-    // Test DNS resolution (non-blocking, just for diagnostics)
-    dns.resolve4(host, (err, addresses) => {
-      if (err) {
-        console.error(`EMAIL: DNS resolution failed for "${host}":`, err.message);
-        console.log(`EMAIL: Hint — if DNS fails, try SMTP_HOST=smtp-mail.outlook.com or smtp.microsoft365.com`);
-      } else {
-        console.log(`EMAIL: DNS resolved "${host}" → ${addresses.join(", ")}`);
-      }
-    });
-
-    transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: false, // STARTTLS
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-      tls: {
-        ciphers: "SSLv3",
-        rejectUnauthorized: false,
-      },
-    });
+    console.log("EMAIL: Initializing Resend client");
+    resendClient = new Resend(apiKey);
   }
-  return transporter;
+  return resendClient;
 }
 
 function getFromAddress(): string {
-  return process.env.SMTP_FROM || process.env.SMTP_USER || "info@bellyscrubs.com";
+  return process.env.EMAIL_FROM || process.env.SMTP_FROM || "info@bellyscrubs.com";
 }
 
 function formatTime(time: string): string {
@@ -76,7 +46,12 @@ function formatDate(dateStr: string): string {
  * Send the customer a booking quote email with price breakdown.
  */
 export async function sendCustomerBookingEmail(booking: Booking): Promise<void> {
-  const mail = getTransporter();
+  const client = getClient();
+  if (!client) {
+    log("Skipping customer email — Resend not configured", "email");
+    return;
+  }
+
   const from = getFromAddress();
 
   const addOnsText = booking.addOns && booking.addOns.length > 0
@@ -150,15 +125,15 @@ export async function sendCustomerBookingEmail(booking: Booking): Promise<void> 
   `;
 
   try {
-    await mail.sendMail({
+    await client.emails.send({
       from,
-      to: booking.customerEmail,
+      to: [booking.customerEmail],
       subject: `Your Belly scRubs Booking Quote - ${formatDate(booking.date)}`,
       html,
     });
     log(`Customer email sent to ${booking.customerEmail}`, "email");
   } catch (error: any) {
-    console.error("EMAIL SEND FAILED (customer):", error.message, error.code || "", error.responseCode || "");
+    console.error("EMAIL SEND FAILED (customer):", error.message || error);
     log(`Failed to send customer email: ${error.message}`, "email");
     throw error;
   }
@@ -172,7 +147,12 @@ export async function sendStaffBookingEmail(
   photoPath: string | null,
   approvalToken: string
 ): Promise<void> {
-  const mail = getTransporter();
+  const client = getClient();
+  if (!client) {
+    log("Skipping staff email — Resend not configured", "email");
+    return;
+  }
+
   const from = getFromAddress();
   const staffEmail = "info@bellyscrubs.com";
 
@@ -236,26 +216,31 @@ export async function sendStaffBookingEmail(
     </div>
   `;
 
-  const attachments: nodemailer.Attachment[] = [];
+  // Build attachments — Resend uses { filename, content } with Buffer
+  const attachments: Array<{ filename: string; content: Buffer }> = [];
   if (photoPath) {
-    attachments.push({
-      filename: `pre-groom-${booking.petName.toLowerCase().replace(/\s+/g, "-")}.jpg`,
-      path: photoPath,
-      cid: "petphoto",
-    });
+    try {
+      const content = fs.readFileSync(photoPath);
+      attachments.push({
+        filename: `pre-groom-${booking.petName.toLowerCase().replace(/\s+/g, "-")}.jpg`,
+        content,
+      });
+    } catch (err: any) {
+      console.warn(`EMAIL: Could not read photo attachment at ${photoPath}: ${err.message}`);
+    }
   }
 
   try {
-    await mail.sendMail({
+    await client.emails.send({
       from,
-      to: staffEmail,
+      to: [staffEmail],
       subject: `🐾 New Booking: ${booking.petName} - ${booking.serviceName} on ${formatDate(booking.date)}`,
       html,
-      attachments,
+      attachments: attachments.length > 0 ? attachments : undefined,
     });
     log(`Staff notification sent to ${staffEmail}`, "email");
   } catch (error: any) {
-    console.error("EMAIL SEND FAILED (staff):", error.message, error.code || "", error.responseCode || "");
+    console.error("EMAIL SEND FAILED (staff):", error.message || error);
     log(`Failed to send staff email: ${error.message}`, "email");
     throw error;
   }
@@ -265,7 +250,12 @@ export async function sendStaffBookingEmail(
  * Send confirmation email to customer after staff approves the booking.
  */
 export async function sendBookingApprovedEmail(booking: Booking): Promise<void> {
-  const mail = getTransporter();
+  const client = getClient();
+  if (!client) {
+    log("Skipping approval email — Resend not configured", "email");
+    return;
+  }
+
   const from = getFromAddress();
 
   const html = `
@@ -302,15 +292,15 @@ export async function sendBookingApprovedEmail(booking: Booking): Promise<void> 
   `;
 
   try {
-    await mail.sendMail({
+    await client.emails.send({
       from,
-      to: booking.customerEmail,
+      to: [booking.customerEmail],
       subject: `✓ Appointment Confirmed - ${booking.petName} at Belly scRubs`,
       html,
     });
     log(`Approval confirmation sent to ${booking.customerEmail}`, "email");
   } catch (error: any) {
-    console.error("EMAIL SEND FAILED (approval):", error.message, error.code || "", error.responseCode || "");
+    console.error("EMAIL SEND FAILED (approval):", error.message || error);
     log(`Failed to send approval email: ${error.message}`, "email");
     throw error;
   }

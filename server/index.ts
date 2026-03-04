@@ -74,13 +74,12 @@ function initSquare() {
 }
 
 function initEmail() {
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  if (smtpUser && smtpPass) {
+  const resendKey = process.env.RESEND_API_KEY;
+  if (resendKey) {
     emailEnabled = true;
-    log(`Email configured (${smtpUser})`);
+    log("Email configured (Resend API)");
   } else {
-    log("Email not configured — booking notifications will be skipped");
+    log("Email not configured (RESEND_API_KEY missing) — booking notifications will be skipped");
   }
 }
 
