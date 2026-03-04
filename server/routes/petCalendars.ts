@@ -41,46 +41,62 @@ const upload = multer({
 const IMAGE_CONCURRENCY = 4;
 
 async function generateMonthImages(calendarId: number, petName: string, petType: string, photoBuffer: Buffer) {
+  console.log(`CALENDAR[${calendarId}]: Starting image generation for ${petName} (${petType}), 12 months`);
   await storage.updatePetCalendarStatus(calendarId, "generating");
 
   const genDir = path.join(process.cwd(), "client", "public", "generated", String(calendarId));
   fs.mkdirSync(genDir, { recursive: true });
+  console.log(`CALENDAR[${calendarId}]: Output directory created: ${genDir}`);
 
   const limit = pLimit(IMAGE_CONCURRENCY);
+  let completedCount = 0;
 
-  await Promise.all(
-    MONTHS.map((monthInfo) =>
-      limit(async () => {
-        try {
-          const monthRow = await storage.createPetCalendarMonth(calendarId, monthInfo.month, monthInfo.holiday);
+  try {
+    await Promise.all(
+      MONTHS.map((monthInfo) =>
+        limit(async () => {
+          try {
+            const monthRow = await storage.createPetCalendarMonth(calendarId, monthInfo.month, monthInfo.holiday);
 
-          const prompt = `A charming, high-quality digital illustration of a ${petType} named ${petName} ${monthInfo.prompt}. The ${petType} is the main subject, depicted in a warm and playful illustration style suitable for a wall calendar. Keep the pet's appearance consistent and adorable.`;
+            const prompt = `A charming, high-quality digital illustration of a ${petType} named ${petName} ${monthInfo.prompt}. The ${petType} is the main subject, depicted in a warm and playful illustration style suitable for a wall calendar. Keep the pet's appearance consistent and adorable.`;
 
-          const imageFile = await toFile(photoBuffer, "pet.png", { type: "image/png" });
-          const openai = getOpenAIClient();
+            console.log(`CALENDAR[${calendarId}]: Generating month ${monthInfo.month} (${monthInfo.holiday})...`);
 
-          const response = await openai.images.edit({
-            model: "gpt-image-1",
-            image: imageFile,
-            prompt,
-            n: 1,
-            size: "1024x1024",
-          });
+            const imageFile = await toFile(photoBuffer, "pet.png", { type: "image/png" });
+            const openai = getOpenAIClient();
 
-          const base64 = response.data[0]?.b64_json;
-          if (base64) {
-            const imgPath = path.join(genDir, `${monthInfo.month}.png`);
-            fs.writeFileSync(imgPath, Buffer.from(base64, "base64"));
-            await storage.updatePetCalendarMonthImage(monthRow.id, `/generated/${calendarId}/${monthInfo.month}.png`);
+            const response = await openai.images.edit({
+              model: "gpt-image-1",
+              image: imageFile,
+              prompt,
+              n: 1,
+              size: "1024x1024",
+            });
+
+            const base64 = response.data[0]?.b64_json;
+            if (base64) {
+              const imgPath = path.join(genDir, `${monthInfo.month}.png`);
+              fs.writeFileSync(imgPath, Buffer.from(base64, "base64"));
+              await storage.updatePetCalendarMonthImage(monthRow.id, `/generated/${calendarId}/${monthInfo.month}.png`);
+              completedCount++;
+              console.log(`CALENDAR[${calendarId}]: Month ${monthInfo.month} complete (${completedCount}/12)`);
+            } else {
+              console.error(`CALENDAR[${calendarId}]: Month ${monthInfo.month} — OpenAI returned no b64_json data`);
+            }
+          } catch (err: any) {
+            console.error(`CALENDAR[${calendarId}]: Error generating month ${monthInfo.month}:`, err?.message || err);
+            console.error(`CALENDAR[${calendarId}]: Full error:`, JSON.stringify(err, Object.getOwnPropertyNames(err || {}), 2));
           }
-        } catch (err) {
-          console.error(`Error generating month ${monthInfo.month}:`, err);
-        }
-      })
-    )
-  );
+        })
+      )
+    );
 
-  await storage.updatePetCalendarStatus(calendarId, "ready");
+    console.log(`CALENDAR[${calendarId}]: All 12 months done. ${completedCount} succeeded.`);
+    await storage.updatePetCalendarStatus(calendarId, "ready");
+  } catch (err: any) {
+    console.error(`CALENDAR[${calendarId}]: Fatal error in generateMonthImages:`, err?.message || err);
+    await storage.updatePetCalendarStatus(calendarId, "error");
+  }
 }
 
 export function registerPetCalendarRoutes(app: Express) {

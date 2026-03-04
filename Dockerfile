@@ -8,7 +8,7 @@ RUN npm install
 
 RUN npx tsx script/build.ts
 
-RUN mkdir -p client/public/uploads/bookings
+RUN mkdir -p client/public/uploads/bookings client/public/generated
 
 EXPOSE 5000
 

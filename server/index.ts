@@ -178,6 +178,9 @@ app.use((req, res, next) => {
     // Verify database connectivity and tables
     await checkDatabase();
 
+    // Log API key availability
+    log(`OPENAI_API_KEY configured: ${!!process.env.OPENAI_API_KEY}`);
+
     // Initialize services
     await initStripe();
     initSquare();
