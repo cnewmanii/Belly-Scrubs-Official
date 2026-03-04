@@ -64,6 +64,7 @@ export const services = [
     duration: 15,
     icon: "Sparkles" as const,
     popular: false,
+    onlineBookable: false,
   },
 ];
 
