@@ -465,6 +465,12 @@ export function registerBookingRoutes(app: Express) {
       try {
         console.log(`SQUARE: Staff approved booking ${bookingId}, creating Square appointment...`);
         const { createSquareAppointment } = await import("../squareClient");
+        // Build the full photo URL so it can be recorded on the Square customer profile
+        const siteHost = req.get("host") || "bellyscrubs.com";
+        const photoFullUrl = booking.petPhotoUrl
+          ? `https://${siteHost}${booking.petPhotoUrl}`
+          : null;
+
         squareId = await createSquareAppointment({
           customerName: booking.customerName,
           customerEmail: booking.customerEmail,
@@ -479,6 +485,7 @@ export function registerBookingRoutes(app: Express) {
           totalPrice: booking.totalPrice,
           depositAmount: booking.depositStatus === "paid" ? DEPOSIT_AMOUNT_CENTS / 100 : 0,
           notes: booking.notes,
+          petPhotoUrl: photoFullUrl,
         });
         await storage.updateBookingSquareId(bookingId, squareId);
         // If the ID doesn't start with "customer-note-", it's a real booking
