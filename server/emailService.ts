@@ -207,11 +207,23 @@ export async function sendStaffBookingEmail(
         </div>
 
         <div style="text-align: center; margin: 24px 0;">
-          <a href="${approvalUrl}"
-             style="display: inline-block; background: #16a34a; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+          <!--[if mso]>
+          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${approvalUrl}" style="height:48px;v-text-anchor:middle;width:220px;" arcsize="17%" strokecolor="#16a34a" fillcolor="#16a34a">
+            <w:anchorlock/>
+            <center style="color:#ffffff;font-family:'Segoe UI',Arial,sans-serif;font-size:16px;font-weight:bold;">✓ Approve Booking</center>
+          </v:roundrect>
+          <![endif]-->
+          <!--[if !mso]><!-->
+          <a href="${approvalUrl}" target="_blank"
+             style="display:inline-block;background-color:#16a34a;color:#ffffff;padding:14px 32px;border-radius:8px;text-decoration:none;-webkit-text-decoration-color:#16a34a;font-weight:bold;font-size:16px;font-family:'Segoe UI',Arial,sans-serif;mso-line-height-rule:exactly;line-height:20px;">
             ✓ Approve Booking
           </a>
+          <!--<![endif]-->
         </div>
+
+        <p style="font-size: 12px; color: #6b7280; text-align: center; word-break: break-all;">
+          Or copy this link: <a href="${approvalUrl}" target="_blank" style="color: #16a34a;">${approvalUrl}</a>
+        </p>
 
         <p style="font-size: 12px; color: #9ca3af; text-align: center;">
           Booking ID: ${booking.id}
