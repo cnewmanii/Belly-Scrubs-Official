@@ -4,6 +4,7 @@ const square = require("square") as typeof import("square");
 const { SquareClient, SquareEnvironment } = square;
 
 import { log } from "./index";
+import { getQualifiedGroomers, isGroomerWorking, GROOMERS } from "./groomerConfig";
 
 type SquareClientType = InstanceType<typeof SquareClient>;
 
@@ -231,6 +232,72 @@ export interface SquareAppointmentData {
 }
 
 /**
+ * Pick an available team member for a booking by:
+ * 1. Finding groomers qualified for the service
+ * 2. Filtering to those working at the booked date/time
+ * 3. Excluding those already booked at that slot (via Square occupied slots)
+ * 4. Falling back to the first mapped groomer if no qualified one is free
+ */
+async function pickAvailableTeamMember(
+  serviceId: string,
+  serviceName: string,
+  date: string,
+  time: string,
+): Promise<string> {
+  // Extract pet size from serviceName for qualification check
+  const nameLC = serviceName.toLowerCase();
+  let petSize: string | undefined;
+  if (nameLC.includes("extra large") || nameLC.includes("xl")) petSize = "XL";
+  else if (nameLC.includes("large")) petSize = "Large";
+  else if (nameLC.includes("medium")) petSize = "Medium";
+  else if (nameLC.includes("small")) petSize = "Small";
+
+  // Step 1: Get qualified groomers (already sorted with priority groomers first)
+  const qualified = getQualifiedGroomers(serviceId, petSize);
+  console.log(`SQUARE TEAM: Qualified groomers for ${serviceId} (${petSize || "any"}): [${qualified.map(g => g.displayName).join(", ")}]`);
+
+  // Step 2: Filter to those working at this date/time
+  const working = qualified.filter(g => isGroomerWorking(g.id, date, time));
+  console.log(`SQUARE TEAM: Working at ${date} ${time}: [${working.map(g => g.displayName).join(", ")}]`);
+
+  // Step 3: Filter to those with a mapped Square team member ID
+  const mapped = working.filter(g => g.squareTeamMemberId);
+  if (mapped.length === 0) {
+    console.log(`SQUARE TEAM: No mapped groomers available — using first mapped groomer as fallback`);
+    const fallback = GROOMERS.find(g => g.squareTeamMemberId);
+    return fallback?.squareTeamMemberId || GROOMERS[0]?.squareTeamMemberId || "";
+  }
+
+  if (mapped.length === 1) {
+    console.log(`SQUARE TEAM: Only one option: ${mapped[0].displayName} (${mapped[0].squareTeamMemberId})`);
+    return mapped[0].squareTeamMemberId;
+  }
+
+  // Step 4: Check Square for existing bookings at this slot to avoid double-booking
+  try {
+    const occupiedSlots = await getSquareOccupiedSlots(date);
+    const bookedAtSlot = occupiedSlots
+      .filter(o => o.time === time && o.teamMemberId)
+      .map(o => o.teamMemberId);
+
+    const free = mapped.filter(g => !bookedAtSlot.includes(g.squareTeamMemberId));
+    console.log(`SQUARE TEAM: Booked at ${time}: [${bookedAtSlot.join(", ")}], free: [${free.map(g => g.displayName).join(", ")}]`);
+
+    if (free.length > 0) {
+      console.log(`SQUARE TEAM: Selected ${free[0].displayName} (${free[0].squareTeamMemberId})`);
+      return free[0].squareTeamMemberId;
+    }
+  } catch (err: any) {
+    console.error(`SQUARE TEAM: Occupied slots check failed: ${err.message} — using first qualified groomer`);
+  }
+
+  // All qualified groomers appear booked — use the first mapped one anyway
+  // (Square will reject if truly double-booked, and fallback path handles it)
+  console.log(`SQUARE TEAM: All appear booked — defaulting to ${mapped[0].displayName}`);
+  return mapped[0].squareTeamMemberId;
+}
+
+/**
  * Create an appointment in Square via the Bookings API.
  *
  * Primary path: Creates a real Square Booking (appears on the Appointments calendar).
@@ -295,9 +362,13 @@ export async function createSquareAppointment(
     const catalogMatch = lookupCatalogService(data.serviceId, data.serviceName);
     const durationMinutes = catalogMatch?.durationMinutes ?? 120;
 
+    // --- Pick a real team member ID (Square rejects "anyone") ---
+    const teamMemberId = await pickAvailableTeamMember(data.serviceId, data.serviceName, data.date, data.time);
+    console.log(`SQUARE: Using teamMemberId=${teamMemberId} for booking`);
+
     const appointmentSegment: any = {
       durationMinutes,
-      teamMemberId: "anyone", // Let Square assign
+      teamMemberId,
     };
 
     if (catalogMatch) {
