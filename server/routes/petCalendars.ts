@@ -77,7 +77,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-const IMAGE_CONCURRENCY = 4;
+const IMAGE_CONCURRENCY = 6;
 
 async function generateMonthImages(calendarId: number, petName: string, petType: string, photoBuffer: Buffer) {
   console.log(`CALENDAR[${calendarId}]: Starting image generation for ${petName} (${petType}), 12 months`);
@@ -86,22 +86,32 @@ async function generateMonthImages(calendarId: number, petName: string, petType:
   const rollingMonths = getRolling12Months();
   console.log(`CALENDAR[${calendarId}]: Rolling months: ${rollingMonths.map(m => `${m.month}/${m.year}`).join(", ")}`);
 
+  // Pre-create all month rows in parallel so DB writes don't block generation
+  const monthRows = await Promise.all(
+    rollingMonths.map((monthInfo) =>
+      storage.createPetCalendarMonth(calendarId, monthInfo.month, monthInfo.year, monthInfo.holiday)
+    )
+  );
+
+  // Create OpenAI client once for all requests
+  const openai = getOpenAIClient();
+
   const limit = pLimit(IMAGE_CONCURRENCY);
   let completedCount = 0;
 
   try {
     await Promise.all(
-      rollingMonths.map((monthInfo) =>
+      rollingMonths.map((monthInfo, idx) =>
         limit(async () => {
           try {
-            const monthRow = await storage.createPetCalendarMonth(calendarId, monthInfo.month, monthInfo.year, monthInfo.holiday);
+            const monthRow = monthRows[idx];
 
             const prompt = `Professional studio-quality portrait of a ${petType} named ${petName}, anthropomorphized and sitting upright, ${monthInfo.prompt}. CRITICAL: preserve the ${petType}'s exact face, fur coloring, breed features, and eye color from the reference photo — only add the costume and scene around them. Hyper-detailed, dramatic lighting, vivid saturated colors, shot with a high-end DSLR, suitable for a premium printed wall calendar. The ${petType} should look majestic and heroic in the scene.`;
 
             console.log(`CALENDAR[${calendarId}]: Generating ${monthInfo.month}/${monthInfo.year} (${monthInfo.holiday})...`);
 
+            // Convert buffer to file per-request (OpenAI SDK consumes the stream)
             const imageFile = await toFile(photoBuffer, "pet.png", { type: "image/png" });
-            const openai = getOpenAIClient();
 
             const response = await openai.images.edit({
               model: "gpt-image-1",
