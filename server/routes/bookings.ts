@@ -459,11 +459,13 @@ export function registerBookingRoutes(app: Express) {
       // Approve the booking
       await storage.approveBooking(bookingId);
 
-      // Create Square appointment (non-blocking)
+      // Create Square appointment
+      let squareId: string | null = null;
+      let isRealBooking = false;
       try {
         console.log(`SQUARE: Staff approved booking ${bookingId}, creating Square appointment...`);
         const { createSquareAppointment } = await import("../squareClient");
-        const squareId = await createSquareAppointment({
+        squareId = await createSquareAppointment({
           customerName: booking.customerName,
           customerEmail: booking.customerEmail,
           customerPhone: booking.customerPhone,
@@ -478,7 +480,9 @@ export function registerBookingRoutes(app: Express) {
           notes: booking.notes,
         });
         await storage.updateBookingSquareId(bookingId, squareId);
-        log(`Square appointment created for approved booking ${bookingId}: ${squareId}`, "booking");
+        // If the ID doesn't start with "customer-note-", it's a real booking
+        isRealBooking = !squareId.startsWith("customer-note-");
+        log(`Square appointment created for approved booking ${bookingId}: ${squareId} (real=${isRealBooking})`, "booking");
       } catch (squareErr: any) {
         console.error(`SQUARE: Appointment creation failed on approval for ${bookingId}:`, squareErr.message);
         log(`Square creation failed on approval: ${squareErr.message}`, "booking");
@@ -500,6 +504,14 @@ export function registerBookingRoutes(app: Express) {
       const aAmpm = aH >= 12 ? "PM" : "AM";
       const aDisplayHour = aH > 12 ? aH - 12 : aH === 0 ? 12 : aH;
       const approvalDisplayTime = `${aDisplayHour}:${aM.toString().padStart(2, "0")} ${aAmpm}`;
+
+      if (isRealBooking) {
+        return res.send(approvalPage(
+          `Booking approved for ${booking.petName} (${booking.customerName})!<br><br>` +
+          `The appointment has been added to the Square calendar automatically.`,
+          true
+        ));
+      }
 
       return res.send(approvalPage(
         `Booking approved for ${booking.petName} (${booking.customerName})!<br><br>` +
