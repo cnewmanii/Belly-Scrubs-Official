@@ -471,7 +471,7 @@ export function registerBookingRoutes(app: Express) {
           ? `https://${siteHost}${booking.petPhotoUrl}`
           : null;
 
-        squareId = await createSquareAppointment({
+        const result = await createSquareAppointment({
           customerName: booking.customerName,
           customerEmail: booking.customerEmail,
           customerPhone: booking.customerPhone,
@@ -487,10 +487,14 @@ export function registerBookingRoutes(app: Express) {
           notes: booking.notes,
           petPhotoUrl: photoFullUrl,
         });
+        squareId = result.bookingId;
         await storage.updateBookingSquareId(bookingId, squareId);
+        if (result.invoiceId) {
+          await storage.updateBookingInvoiceId(bookingId, result.invoiceId);
+        }
         // If the ID doesn't start with "customer-note-", it's a real booking
         isRealBooking = !squareId.startsWith("customer-note-");
-        log(`Square appointment created for approved booking ${bookingId}: ${squareId} (real=${isRealBooking})`, "booking");
+        log(`Square appointment created for approved booking ${bookingId}: ${squareId} (real=${isRealBooking})${result.invoiceId ? ` invoice=${result.invoiceId}` : ""}`, "booking");
       } catch (squareErr: any) {
         console.error(`SQUARE: Appointment creation failed on approval for ${bookingId}:`, squareErr.message);
         log(`Square creation failed on approval: ${squareErr.message}`, "booking");

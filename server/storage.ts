@@ -18,6 +18,7 @@ export interface IStorage {
   createBooking(booking: InsertBooking): Promise<Booking>;
   updateBookingDepositStatus(id: string, status: string, stripeSessionId: string): Promise<void>;
   updateBookingSquareId(id: string, squareAppointmentId: string): Promise<void>;
+  updateBookingInvoiceId(id: string, squareInvoiceId: string): Promise<void>;
   updateBookingStatus(id: string, status: string): Promise<void>;
   getBookingByStripeSession(sessionId: string): Promise<Booking | undefined>;
   updateBookingPhoto(id: string, photoUrl: string, photoTimestamp: Date | null): Promise<void>;
@@ -86,6 +87,12 @@ class DatabaseStorage implements IStorage {
   async updateBookingSquareId(id: string, squareAppointmentId: string): Promise<void> {
     await db.update(bookings)
       .set({ squareAppointmentId })
+      .where(eq(bookings.id, id));
+  }
+
+  async updateBookingInvoiceId(id: string, squareInvoiceId: string): Promise<void> {
+    await db.update(bookings)
+      .set({ squareInvoiceId })
       .where(eq(bookings.id, id));
   }
 
