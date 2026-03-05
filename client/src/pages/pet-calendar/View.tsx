@@ -147,7 +147,7 @@ function MonthCalendarCard({ month, petName, isUnlocked, onImageClick }: {
             <img
               src={month.imageUrl}
               alt={`${petName} in ${monthName}`}
-              className={`w-full h-full object-cover ${!isUnlocked ? "filter blur-sm scale-105" : "cursor-pointer"}`}
+              className={`w-full h-full object-cover transition-transform duration-300 ${!isUnlocked ? "filter blur-sm scale-105" : "cursor-pointer hover:scale-110"}`}
               onClick={isUnlocked ? () => onImageClick?.(month.imageUrl!, `${petName} in ${monthName}`) : undefined}
             />
             {!isUnlocked && (
