@@ -229,6 +229,7 @@ export interface SquareAppointmentData {
   totalPrice: number;
   depositAmount: number;
   notes: string | null;
+  petPhotoUrl: string | null; // URL to the pre-groom photo on our server
 }
 
 /**
@@ -324,6 +325,15 @@ export async function createSquareAppointment(
     data.customerEmail,
     data.customerPhone
   );
+
+  // Append this booking's details + photo to the customer note in Square.
+  // This builds a history so returning customers accumulate their visit log.
+  try {
+    await appendBookingToCustomerNote(client, customerId, data);
+  } catch (noteErr: any) {
+    // Non-fatal — don't block the booking if note update fails
+    console.error(`SQUARE: Customer note update failed: ${noteErr.message}`);
+  }
 
   // --- PRIMARY PATH: Create a real Square Booking ---
   try {
@@ -641,6 +651,49 @@ async function findOrCreateSquareCustomer(
 
   console.log(`SQUARE CUSTOMER: Created new customer: ${customerId}`);
   return customerId;
+}
+
+/**
+ * Append booking info + pet photo link to the Square customer note.
+ * Builds a running log so returning customers accumulate visit history.
+ * Square customer notes are plain text (max ~65k chars), no file uploads.
+ */
+async function appendBookingToCustomerNote(
+  client: SquareClientType,
+  customerId: string,
+  data: SquareAppointmentData,
+): Promise<void> {
+  // Fetch current customer to get existing note
+  const customerResponse = await client.customers.get({ customerId });
+  const existingNote = customerResponse.customer?.note || "";
+
+  const [h, m] = data.time.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const dh = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  const timeStr = `${dh}:${m.toString().padStart(2, "0")} ${ampm}`;
+
+  const newEntry = [
+    `--- Booking: ${data.date} at ${timeStr} ---`,
+    `Pet: ${data.petName}${data.petBreed ? ` (${data.petBreed})` : ""}`,
+    `Service: ${data.serviceName}`,
+    data.addOns.length > 0 ? `Add-ons: ${data.addOns.join(", ")}` : null,
+    data.notes ? `Notes: ${data.notes}` : null,
+    data.petPhotoUrl ? `Pre-groom photo: ${data.petPhotoUrl}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  // Append new entry to existing note (most recent at bottom)
+  const updatedNote = existingNote
+    ? `${existingNote}\n\n${newEntry}`
+    : newEntry;
+
+  await client.customers.update({
+    customerId,
+    note: updatedNote,
+  });
+
+  console.log(`SQUARE CUSTOMER: Updated note for ${customerId} with booking ${data.date} ${timeStr} + photo`);
 }
 
 export interface OccupiedSlot {
