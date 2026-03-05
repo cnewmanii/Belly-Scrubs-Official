@@ -45,7 +45,7 @@ const CALENDAR_PRICE_CENTS = 2999;
  * Each month has multiple prompt variants so every calendar is unique.
  * Prompts use {{HE_SHE}}, {{HIS_HER}}, {{HIM_HER}} placeholders for gendered language.
  */
-const MONTH_THEMES: Record<number, { holiday: string; prompts: string[] }> = {
+const MONTH_THEMES: Record<number, { holiday: string; prompts: string[]; maleHoliday?: string; malePrompts?: string[] }> = {
   1: { holiday: "New Year's Day", prompts: [
     "wearing a glittering gold tuxedo with a sequined bow tie and a \"Happy New Year\" sash, holding a champagne glass in one paw and a sparkling noisemaker in the other, standing on a rooftop party scene with confetti cannons exploding, golden balloons, streamers everywhere, a dazzling city skyline with fireworks bursting in brilliant colors across the midnight sky",
     "wearing a shimmering silver cocktail outfit with a feathered headband and elbow-length gloves, popping a giant bottle of champagne with golden fizz spraying everywhere, standing inside a luxurious ballroom with crystal chandeliers, a massive glitter ball, art-deco decorations, and a countdown clock striking midnight",
@@ -70,6 +70,10 @@ const MONTH_THEMES: Record<number, { holiday: string; prompts: string[] }> = {
     "wearing an elegant floral spring dress with a wide-brimmed sun hat decorated with fresh flowers, holding an enormous bouquet of peonies, roses, and lilies in both paws, standing in a gorgeous sunlit botanical garden with a white gazebo draped in wisteria, butterflies fluttering, a beautifully set tea table with fine china and a tiered cake in the background",
     "wearing a chic pastel pantsuit with a corsage of fresh gardenias, sitting in a luxurious wicker chair on a sunlit veranda, surrounded by hanging flower baskets and potted orchids, a lace-covered table with a stack of beautifully wrapped gifts and a \"Best Mom\" trophy, hummingbirds visiting nearby blooms",
     "wearing a flowing silk kimono-inspired robe with hand-painted cherry blossoms, holding a delicate porcelain teacup in one paw, relaxing in a serene Japanese zen garden with a koi pond, stepping stones, blooming azaleas, and a wooden bridge, soft morning light filtering through maple trees",
+  ], maleHoliday: "Father's Day", malePrompts: [
+    "wearing a sharp navy blazer with a pocket square and a \"World's Best Dad\" tie, holding a shiny set of BBQ tongs in one paw and a cold lemonade in the other, standing proudly next to a smoking grill loaded with burgers and hot dogs in a sunny backyard, a hammock strung between oak trees, lawn games set up on the grass, a cooler full of drinks nearby",
+    "wearing a classic leather bomber jacket with aviator sunglasses and a vintage baseball cap, leaning against a beautifully restored muscle car with a gleaming chrome finish, tools neatly arranged on a garage workbench behind {{HIM_HER}}, an open road stretching into a golden sunset, a \"#1 Dad\" bumper sticker on the car",
+    "wearing a rugged flannel shirt with rolled-up sleeves, a fishing vest covered in lures, and a wide-brimmed outdoorsman hat, holding an enormous trophy fish in both paws with a proud grin, standing on a wooden dock at a peaceful mountain lake at sunrise, a tackle box and fishing rod beside {{HIM_HER}}, pine-covered mountains reflected in the still water",
   ]},
   6: { holiday: "Summer Solstice", prompts: [
     "wearing a vibrant Hawaiian shirt with board shorts, flip-flops, and oversized aviator sunglasses, holding a colorful surfboard under one arm and a tropical drink with an umbrella in the other paw, standing on a pristine white sand beach with crystal turquoise waves, palm trees swaying, a brilliant golden sunset painting the sky in orange, pink, and purple",
@@ -108,9 +112,10 @@ const MONTH_THEMES: Record<number, { holiday: string; prompts: string[] }> = {
   ]},
 };
 
-/** Pick a random prompt variant for a month. */
-function pickRandomPrompt(month: number): string {
-  const variants = MONTH_THEMES[month].prompts;
+/** Pick a random prompt variant for a month, respecting gender-specific overrides. */
+function pickRandomPrompt(month: number, gender: "male" | "female"): string {
+  const theme = MONTH_THEMES[month];
+  const variants = (gender === "male" && theme.malePrompts) ? theme.malePrompts : theme.prompts;
   return variants[Math.floor(Math.random() * variants.length)];
 }
 
@@ -134,8 +139,9 @@ function getRolling12Months(gender: "male" | "female"): Array<{ month: number; y
     const m = ((startMonth - 1 + i) % 12) + 1; // 1-12
     const y = startYear + Math.floor((startMonth - 1 + i) / 12);
     const theme = MONTH_THEMES[m];
-    const rawPrompt = pickRandomPrompt(m);
-    result.push({ month: m, year: y, holiday: theme.holiday, prompt: applyGender(rawPrompt, gender) });
+    const holiday = (gender === "male" && theme.maleHoliday) ? theme.maleHoliday : theme.holiday;
+    const rawPrompt = pickRandomPrompt(m, gender);
+    result.push({ month: m, year: y, holiday, prompt: applyGender(rawPrompt, gender) });
   }
   return result;
 }
