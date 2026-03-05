@@ -12,6 +12,7 @@ type CalendarData = {
   months: Array<{
     id: number;
     month: number;
+    year: number;
     holidayName: string;
     imageUrl: string | null;
     generated: number;
