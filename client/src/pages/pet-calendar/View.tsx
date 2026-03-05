@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react";
 
 const MONTH_NAMES = [
@@ -91,10 +92,47 @@ function CalendarGrid({ month, year }: { month: number; year: number }) {
   );
 }
 
-function MonthCalendarCard({ month, petName, isUnlocked }: {
+function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [handleKeyDown]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 z-50 rounded-full bg-black/50 p-2 text-white hover:bg-black/70 transition-colors"
+        aria-label="Close"
+      >
+        <X className="w-6 h-6" />
+      </button>
+      <img
+        src={src}
+        alt={alt}
+        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
+function MonthCalendarCard({ month, petName, isUnlocked, onImageClick }: {
   month: CalendarMonth;
   petName: string;
   isUnlocked: boolean;
+  onImageClick?: (src: string, alt: string) => void;
 }) {
   const monthName = MONTH_NAMES[month.month - 1];
 
@@ -103,13 +141,14 @@ function MonthCalendarCard({ month, petName, isUnlocked }: {
       data-testid={`card-month-${month.month}`}
       className="rounded-xl overflow-hidden border border-border bg-card shadow-sm"
     >
-      <div className="relative aspect-[4/3] bg-muted overflow-hidden">
+      <div className="relative aspect-[3/4] bg-muted overflow-hidden">
         {month.generated === 1 && month.imageUrl ? (
           <>
             <img
               src={month.imageUrl}
               alt={`${petName} in ${monthName}`}
-              className={`w-full h-full object-cover ${!isUnlocked ? "filter blur-sm scale-105" : ""}`}
+              className={`w-full h-full object-cover ${!isUnlocked ? "filter blur-sm scale-105" : "cursor-pointer"}`}
+              onClick={isUnlocked ? () => onImageClick?.(month.imageUrl!, `${petName} in ${monthName}`) : undefined}
             />
             {!isUnlocked && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -145,6 +184,7 @@ export default function PetCalendarView() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
   const { data: calendar, isLoading } = useQuery<CalendarData | null>({
     queryKey: ["/api/pet-calendars", id],
@@ -291,6 +331,7 @@ export default function PetCalendarView() {
                 month={month}
                 petName={calendar.petName}
                 isUnlocked={isUnlocked}
+                onImageClick={(src, alt) => setLightbox({ src, alt })}
               />
             );
           })}
@@ -389,6 +430,14 @@ export default function PetCalendarView() {
           </div>
         )}
       </div>
+
+      {lightbox && (
+        <ImageLightbox
+          src={lightbox.src}
+          alt={lightbox.alt}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </main>
   );
 }
