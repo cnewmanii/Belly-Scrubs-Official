@@ -307,9 +307,14 @@ async function pickAvailableTeamMember(
  * so the data is not lost. Detailed error logging is included for diagnosing
  * Bookings API failures.
  */
+export interface SquareAppointmentResult {
+  bookingId: string;
+  invoiceId: string | null;
+}
+
 export async function createSquareAppointment(
   data: SquareAppointmentData
-): Promise<string> {
+): Promise<SquareAppointmentResult> {
   const client = getSquareClient();
   const locationId = getSquareLocationId();
 
@@ -414,9 +419,10 @@ export async function createSquareAppointment(
     log(`Square booking created: ${bookingId} — ${data.date} ${data.time}`, "square");
 
     // Create invoice with deposit credit if a Stripe deposit was collected
+    let invoiceId: string | null = null;
     if (data.depositAmount > 0) {
       try {
-        await createSquareInvoice(
+        invoiceId = await createSquareInvoice(
           customerId,
           locationId,
           data.serviceName,
@@ -432,7 +438,7 @@ export async function createSquareAppointment(
       }
     }
 
-    return bookingId;
+    return { bookingId, invoiceId };
   } catch (bookingError: any) {
     // --- DETAILED ERROR LOGGING for Bookings API failure ---
     console.error(`SQUARE: ✗ Bookings API call FAILED. Falling back to customer note.`);
@@ -492,7 +498,7 @@ export async function createSquareAppointment(
     console.log(`SQUARE: Customer note created for ${data.customerName} (${customerId})`);
     console.log(`SQUARE: ⚠ REMINDER: Staff must manually create a calendar entry in Square Appointments for ${data.date} at ${displayTime}`);
     log(`Square customer note created (fallback): ${customerId} — ${data.date} ${data.time} (needs manual calendar entry)`, "square");
-    return `customer-note-${customerId}`;
+    return { bookingId: `customer-note-${customerId}`, invoiceId: null };
   } catch (noteError: any) {
     console.error("SQUARE: Customer note creation also failed:", noteError.message);
     log(`Square customer note error: ${noteError.message}`, "square");
