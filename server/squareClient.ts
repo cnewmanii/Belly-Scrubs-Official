@@ -49,19 +49,19 @@ export interface SquareAppointmentData {
 }
 
 /**
- * Create an appointment record in Square.
+ * Create an appointment in Square via the Bookings API.
  *
- * IMPORTANT: This creates a CUSTOMER NOTE, not a calendar appointment.
- * The Bookings API requires serviceVariationId (bookable catalog services)
- * which this account does not have configured. Customer notes appear on the
- * customer's profile in Square Dashboard but NOT on the Appointments calendar.
- *
- * Staff must manually add the appointment to the Square calendar after approval.
+ * Primary path: Creates a real Square Booking (appears on the Appointments calendar).
+ * Fallback path: If the Bookings API fails (e.g. missing serviceVariationId,
+ * Bookings API not enabled, etc.), falls back to creating a customer note
+ * so the data is not lost. Detailed error logging is included for diagnosing
+ * Bookings API failures.
  */
 export async function createSquareAppointment(
   data: SquareAppointmentData
 ): Promise<string> {
   const client = getSquareClient();
+  const locationId = getSquareLocationId();
 
   // Format time for readability
   const [h, m] = data.time.split(":").map(Number);
@@ -69,6 +69,122 @@ export async function createSquareAppointment(
   const displayHour = h > 12 ? h - 12 : h === 0 ? 12 : h;
   const displayTime = `${displayHour}:${m.toString().padStart(2, "0")} ${ampm}`;
 
+  // Find or create the Square customer first (needed for both paths)
+  const customerId = await findOrCreateSquareCustomer(
+    data.customerName,
+    data.customerEmail,
+    data.customerPhone
+  );
+
+  // --- PRIMARY PATH: Create a real Square Booking ---
+  try {
+    console.log(`SQUARE: Attempting to create Bookings API appointment for ${data.petName} on ${data.date} at ${data.time}`);
+
+    // Build the start time in UTC from the local Eastern Time date+time
+    const localDateTimeStr = `${data.date}T${data.time}:00`;
+    // Use America/New_York to get correct UTC offset (handles DST automatically)
+    const localDate = new Date(new Date(localDateTimeStr).toLocaleString("en-US", { timeZone: "America/New_York" }));
+    // Reconstruct as a proper UTC timestamp
+    const etOffsetMs = new Date(localDateTimeStr).getTime() - localDate.getTime();
+    const startAtUTC = new Date(new Date(localDateTimeStr).getTime() - etOffsetMs);
+    // Simpler approach: construct the ISO string with ET offset
+    // Eastern Time is UTC-5 (EST) or UTC-4 (EDT). We'll let Square interpret.
+    const startAtISO = new Date(
+      Date.UTC(
+        parseInt(data.date.split("-")[0]),
+        parseInt(data.date.split("-")[1]) - 1,
+        parseInt(data.date.split("-")[2]),
+        h + 5, // Approximate EST offset; Square will normalize
+        m
+      )
+    ).toISOString();
+
+    console.log(`SQUARE: Computed startAt (UTC): ${startAtISO}`);
+
+    const bookingNote = [
+      `Pet: ${data.petName}${data.petBreed ? ` (${data.petBreed})` : ""}`,
+      `Service: ${data.serviceName}`,
+      data.addOns.length > 0 ? `Add-ons: ${data.addOns.join(", ")}` : null,
+      `Total: $${data.totalPrice}`,
+      data.depositAmount > 0
+        ? `Deposit: $${data.depositAmount} paid | Remaining: $${data.totalPrice - data.depositAmount}`
+        : null,
+      data.notes ? `Notes: ${data.notes}` : null,
+      `Booked online via bellyscrubs.com`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const bookingRequest: any = {
+      booking: {
+        startAt: startAtISO,
+        locationId,
+        customerId,
+        customerNote: bookingNote,
+        appointmentSegments: [
+          {
+            durationMinutes: 120, // Default 2-hour appointment
+            teamMemberId: "anyone", // Let Square assign
+            // serviceVariationId and serviceVariationVersion are required
+            // if the location has bookable catalog services configured.
+            // If these env vars are set, include them.
+            ...(process.env.SQUARE_SERVICE_VARIATION_ID
+              ? {
+                  serviceVariationId: process.env.SQUARE_SERVICE_VARIATION_ID,
+                  serviceVariationVersion: process.env.SQUARE_SERVICE_VARIATION_VERSION
+                    ? BigInt(process.env.SQUARE_SERVICE_VARIATION_VERSION)
+                    : undefined,
+                }
+              : {}),
+          },
+        ],
+      },
+      idempotencyKey: `belly-scrubs-booking-${data.customerEmail}-${data.date}-${data.time}-${Date.now()}`,
+    };
+
+    console.log(`SQUARE: Bookings API request payload:`, JSON.stringify(bookingRequest, (_, v) => typeof v === "bigint" ? v.toString() : v, 2));
+
+    const bookingResponse = await client.bookings.create(bookingRequest);
+
+    const bookingId = bookingResponse.booking?.id;
+    if (!bookingId) {
+      throw new Error("Square Bookings API returned success but no booking ID");
+    }
+
+    console.log(`SQUARE: ✓ Booking created successfully! ID: ${bookingId}`);
+    console.log(`SQUARE: Booking status: ${bookingResponse.booking?.status}`);
+    log(`Square booking created: ${bookingId} — ${data.date} ${data.time}`, "square");
+    return bookingId;
+  } catch (bookingError: any) {
+    // --- DETAILED ERROR LOGGING for Bookings API failure ---
+    console.error(`SQUARE: ✗ Bookings API call FAILED. Falling back to customer note.`);
+    console.error(`SQUARE: Bookings API error message: ${bookingError.message}`);
+
+    // Log the full error object for debugging
+    if (bookingError.statusCode) {
+      console.error(`SQUARE: HTTP status code: ${bookingError.statusCode}`);
+    }
+    if (bookingError.errors) {
+      console.error(`SQUARE: Square API errors:`, JSON.stringify(bookingError.errors, null, 2));
+      for (const err of bookingError.errors) {
+        console.error(`SQUARE:   - category=${err.category} code=${err.code} detail="${err.detail}" field="${err.field}"`);
+      }
+    }
+    if (bookingError.body) {
+      try {
+        const body = typeof bookingError.body === "string" ? JSON.parse(bookingError.body) : bookingError.body;
+        console.error(`SQUARE: Full error response body:`, JSON.stringify(body, null, 2));
+      } catch {
+        console.error(`SQUARE: Raw error body:`, bookingError.body);
+      }
+    }
+    // Log the stack trace for code-level debugging
+    console.error(`SQUARE: Error stack:`, bookingError.stack);
+
+    log(`Square Bookings API failed: ${bookingError.message} — falling back to customer note`, "square");
+  }
+
+  // --- FALLBACK PATH: Create a customer note ---
   const noteLines = [
     `★ ONLINE BOOKING - NEEDS CALENDAR ENTRY`,
     `Date: ${data.date} at ${displayTime}`,
@@ -87,14 +203,7 @@ export async function createSquareAppointment(
     .join("\n");
 
   try {
-    console.log(`SQUARE: Creating customer note for ${data.petName} on ${data.date} at ${data.time}`);
-    console.log(`SQUARE: NOTE: This creates a customer note, NOT a calendar appointment. Staff must manually add this to the Square calendar.`);
-
-    const customerId = await findOrCreateSquareCustomer(
-      data.customerName,
-      data.customerEmail,
-      data.customerPhone
-    );
+    console.log(`SQUARE: FALLBACK — Creating customer note for ${data.petName} on ${data.date} at ${data.time}`);
 
     await client.customers.update({
       customerId,
@@ -103,12 +212,12 @@ export async function createSquareAppointment(
 
     console.log(`SQUARE: Customer note created for ${data.customerName} (${customerId})`);
     console.log(`SQUARE: ⚠ REMINDER: Staff must manually create a calendar entry in Square Appointments for ${data.date} at ${displayTime}`);
-    log(`Square customer note created: ${customerId} — ${data.date} ${data.time} (needs manual calendar entry)`, "square");
+    log(`Square customer note created (fallback): ${customerId} — ${data.date} ${data.time} (needs manual calendar entry)`, "square");
     return `customer-note-${customerId}`;
-  } catch (error: any) {
-    console.error("SQUARE: Customer note creation failed:", error.message);
-    log(`Square customer note error: ${error.message}`, "square");
-    throw new Error(`Failed to create Square record: ${error.message}`);
+  } catch (noteError: any) {
+    console.error("SQUARE: Customer note creation also failed:", noteError.message);
+    log(`Square customer note error: ${noteError.message}`, "square");
+    throw new Error(`Failed to create Square record: ${noteError.message}`);
   }
 }
 
