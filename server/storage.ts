@@ -32,7 +32,7 @@ export interface IStorage {
   updatePetCalendarPurchased(id: number, sessionId: string, email: string): Promise<void>;
   getPetCalendarBySession(sessionId: string): Promise<PetCalendar | undefined>;
   getPetCalendarMonths(calendarId: number): Promise<PetCalendarMonth[]>;
-  createPetCalendarMonth(calendarId: number, month: number, holidayName: string): Promise<PetCalendarMonth>;
+  createPetCalendarMonth(calendarId: number, month: number, year: number, holidayName: string): Promise<PetCalendarMonth>;
   updatePetCalendarMonthImage(id: number, imageUrl: string): Promise<void>;
   getGeneratedMonthCount(calendarId: number): Promise<number>;
 }
@@ -163,8 +163,8 @@ class DatabaseStorage implements IStorage {
     return db.select().from(petCalendarMonths).where(eq(petCalendarMonths.calendarId, calendarId));
   }
 
-  async createPetCalendarMonth(calendarId: number, month: number, holidayName: string): Promise<PetCalendarMonth> {
-    const [row] = await db.insert(petCalendarMonths).values({ calendarId, month, holidayName }).returning();
+  async createPetCalendarMonth(calendarId: number, month: number, year: number, holidayName: string): Promise<PetCalendarMonth> {
+    const [row] = await db.insert(petCalendarMonths).values({ calendarId, month, year, holidayName }).returning();
     return row;
   }
 

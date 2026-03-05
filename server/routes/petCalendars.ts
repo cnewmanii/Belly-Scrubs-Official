@@ -1,7 +1,5 @@
 import type { Express, Request, Response } from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 import { storage } from "../storage";
 import { stripeEnabled } from "../index";
 
@@ -42,20 +40,37 @@ function getOpenAIClient() {
 
 const CALENDAR_PRICE_CENTS = 2999;
 
-const MONTHS = [
-  { month: 1, holiday: "New Year's Day", prompt: "celebrating New Year's Day with party hats, confetti, and fireworks" },
-  { month: 2, holiday: "Valentine's Day", prompt: "surrounded by hearts and roses for Valentine's Day, with a cute love theme" },
-  { month: 3, holiday: "St. Patrick's Day", prompt: "wearing a tiny green hat for St. Patrick's Day, with shamrocks and gold" },
-  { month: 4, holiday: "Easter", prompt: "with colorful Easter eggs and spring flowers, wearing bunny ears" },
-  { month: 5, holiday: "Mother's Day", prompt: "with a bouquet of flowers for Mother's Day, in a soft spring setting" },
-  { month: 6, holiday: "Summer Solstice", prompt: "playing at the beach on a sunny summer day, splashing in waves" },
-  { month: 7, holiday: "Independence Day", prompt: "with American flags and fireworks for the 4th of July, patriotic and festive" },
-  { month: 8, holiday: "National Pet Day", prompt: "playing happily outdoors on National Pet Day, wearing a colorful bandana" },
-  { month: 9, holiday: "Back to School", prompt: "sitting next to school books and an apple, looking curious and studious" },
-  { month: 10, holiday: "Halloween", prompt: "wearing a cute Halloween costume with pumpkins and bats in the background" },
-  { month: 11, holiday: "Thanksgiving", prompt: "sitting at a cozy Thanksgiving table with autumn leaves, pumpkins, and harvest decorations" },
-  { month: 12, holiday: "Christmas", prompt: "wearing a Santa hat next to a decorated Christmas tree with wrapped presents and snowflakes" },
-];
+/** Holiday/seasonal themes keyed by month number (1-12). */
+const MONTH_THEMES: Record<number, { holiday: string; prompt: string }> = {
+  1:  { holiday: "New Year's Day", prompt: "celebrating New Year's Day with party hats, confetti, and fireworks" },
+  2:  { holiday: "Valentine's Day", prompt: "surrounded by hearts and roses for Valentine's Day, with a cute love theme" },
+  3:  { holiday: "St. Patrick's Day", prompt: "wearing a tiny green hat for St. Patrick's Day, with shamrocks and gold" },
+  4:  { holiday: "Easter", prompt: "with colorful Easter eggs and spring flowers, wearing bunny ears" },
+  5:  { holiday: "Mother's Day", prompt: "with a bouquet of flowers for Mother's Day, in a soft spring setting" },
+  6:  { holiday: "Summer Solstice", prompt: "playing at the beach on a sunny summer day, splashing in waves" },
+  7:  { holiday: "Independence Day", prompt: "with American flags and fireworks for the 4th of July, patriotic and festive" },
+  8:  { holiday: "National Pet Day", prompt: "playing happily outdoors on National Pet Day, wearing a colorful bandana" },
+  9:  { holiday: "Back to School", prompt: "sitting next to school books and an apple, looking curious and studious" },
+  10: { holiday: "Halloween", prompt: "wearing a cute Halloween costume with pumpkins and bats in the background" },
+  11: { holiday: "Thanksgiving", prompt: "sitting at a cozy Thanksgiving table with autumn leaves, pumpkins, and harvest decorations" },
+  12: { holiday: "Christmas", prompt: "wearing a Santa hat next to a decorated Christmas tree with wrapped presents and snowflakes" },
+};
+
+/** Build a rolling 12-month schedule starting from the current month. */
+function getRolling12Months(): Array<{ month: number; year: number; holiday: string; prompt: string }> {
+  const now = new Date();
+  const startMonth = now.getMonth() + 1; // 1-indexed
+  const startYear = now.getFullYear();
+  const result: Array<{ month: number; year: number; holiday: string; prompt: string }> = [];
+
+  for (let i = 0; i < 12; i++) {
+    const m = ((startMonth - 1 + i) % 12) + 1; // 1-12
+    const y = startYear + Math.floor((startMonth - 1 + i) / 12);
+    const theme = MONTH_THEMES[m];
+    result.push({ month: m, year: y, holiday: theme.holiday, prompt: theme.prompt });
+  }
+  return result;
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -68,23 +83,22 @@ async function generateMonthImages(calendarId: number, petName: string, petType:
   console.log(`CALENDAR[${calendarId}]: Starting image generation for ${petName} (${petType}), 12 months`);
   await storage.updatePetCalendarStatus(calendarId, "generating");
 
-  const genDir = path.join(process.cwd(), "client", "public", "generated", String(calendarId));
-  fs.mkdirSync(genDir, { recursive: true });
-  console.log(`CALENDAR[${calendarId}]: Output directory created: ${genDir}`);
+  const rollingMonths = getRolling12Months();
+  console.log(`CALENDAR[${calendarId}]: Rolling months: ${rollingMonths.map(m => `${m.month}/${m.year}`).join(", ")}`);
 
   const limit = pLimit(IMAGE_CONCURRENCY);
   let completedCount = 0;
 
   try {
     await Promise.all(
-      MONTHS.map((monthInfo) =>
+      rollingMonths.map((monthInfo) =>
         limit(async () => {
           try {
-            const monthRow = await storage.createPetCalendarMonth(calendarId, monthInfo.month, monthInfo.holiday);
+            const monthRow = await storage.createPetCalendarMonth(calendarId, monthInfo.month, monthInfo.year, monthInfo.holiday);
 
             const prompt = `A charming, high-quality digital illustration of a ${petType} named ${petName} ${monthInfo.prompt}. The ${petType} is the main subject, depicted in a warm and playful illustration style suitable for a wall calendar. Keep the pet's appearance consistent and adorable.`;
 
-            console.log(`CALENDAR[${calendarId}]: Generating month ${monthInfo.month} (${monthInfo.holiday})...`);
+            console.log(`CALENDAR[${calendarId}]: Generating ${monthInfo.month}/${monthInfo.year} (${monthInfo.holiday})...`);
 
             const imageFile = await toFile(photoBuffer, "pet.png", { type: "image/png" });
             const openai = getOpenAIClient();
@@ -99,16 +113,16 @@ async function generateMonthImages(calendarId: number, petName: string, petType:
 
             const base64 = response.data[0]?.b64_json;
             if (base64) {
-              const imgPath = path.join(genDir, `${monthInfo.month}.png`);
-              fs.writeFileSync(imgPath, Buffer.from(base64, "base64"));
-              await storage.updatePetCalendarMonthImage(monthRow.id, `/generated/${calendarId}/${monthInfo.month}.png`);
+              // Store as base64 data URL directly in the database (Railway-compatible)
+              const dataUrl = `data:image/png;base64,${base64}`;
+              await storage.updatePetCalendarMonthImage(monthRow.id, dataUrl);
               completedCount++;
-              console.log(`CALENDAR[${calendarId}]: Month ${monthInfo.month} complete (${completedCount}/12)`);
+              console.log(`CALENDAR[${calendarId}]: ${monthInfo.month}/${monthInfo.year} complete (${completedCount}/12)`);
             } else {
-              console.error(`CALENDAR[${calendarId}]: Month ${monthInfo.month} — OpenAI returned no b64_json data`);
+              console.error(`CALENDAR[${calendarId}]: ${monthInfo.month}/${monthInfo.year} — OpenAI returned no b64_json data`);
             }
           } catch (err: any) {
-            console.error(`CALENDAR[${calendarId}]: Error generating month ${monthInfo.month}:`, err?.message || err);
+            console.error(`CALENDAR[${calendarId}]: Error generating ${monthInfo.month}/${monthInfo.year}:`, err?.message || err);
             console.error(`CALENDAR[${calendarId}]: Full error:`, JSON.stringify(err, Object.getOwnPropertyNames(err || {}), 2));
           }
         })
@@ -195,7 +209,7 @@ export function registerPetCalendarRoutes(app: Express) {
         status,
         generatedCount,
         totalMonths: 12,
-        months: months.sort((a, b) => a.month - b.month),
+        months: months.sort((a, b) => a.year - b.year || a.month - b.month),
       });
     } catch (err) {
       console.error("Calendar fetch error:", err instanceof Error ? err.stack : err);

@@ -28,6 +28,17 @@ const MONTH_NAMES = [
 
 const DAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+const PREVIEW_MONTHS = 3; // First N months shown unlocked as preview
+
+type CalendarMonth = {
+  id: number;
+  month: number;
+  year: number;
+  holidayName: string;
+  imageUrl: string | null;
+  generated: number;
+};
+
 type CalendarData = {
   id: number;
   petName: string;
@@ -35,19 +46,8 @@ type CalendarData = {
   status: "pending" | "generating" | "ready" | "purchased";
   generatedCount: number;
   totalMonths: number;
-  months: Array<{
-    id: number;
-    month: number;
-    holidayName: string;
-    imageUrl: string | null;
-    generated: number;
-  }>;
+  months: CalendarMonth[];
 };
-
-function getCalendarYear() {
-  const now = new Date();
-  return now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear();
-}
 
 function getMonthDays(year: number, month: number) {
   const firstDay = new Date(year, month - 1, 1).getDay();
@@ -91,11 +91,10 @@ function CalendarGrid({ month, year }: { month: number; year: number }) {
   );
 }
 
-function MonthCalendarCard({ month, petName, isUnlocked, year }: {
-  month: CalendarData["months"][0];
+function MonthCalendarCard({ month, petName, isUnlocked }: {
+  month: CalendarMonth;
   petName: string;
   isUnlocked: boolean;
-  year: number;
 }) {
   const monthName = MONTH_NAMES[month.month - 1];
 
@@ -130,10 +129,10 @@ function MonthCalendarCard({ month, petName, isUnlocked, year }: {
 
       <div className="p-3 space-y-2">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-sm text-foreground">{monthName} {year}</h3>
+          <h3 className="font-bold text-sm text-foreground">{monthName} {month.year}</h3>
           <span className="text-[10px] text-muted-foreground">{month.holidayName}</span>
         </div>
-        <CalendarGrid month={month.month} year={year} />
+        <CalendarGrid month={month.month} year={month.year} />
       </div>
     </div>
   );
@@ -146,7 +145,6 @@ export default function PetCalendarView() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
-  const calendarYear = getCalendarYear();
 
   const { data: calendar, isLoading } = useQuery<CalendarData | null>({
     queryKey: ["/api/pet-calendars", id],
@@ -221,11 +219,18 @@ export default function PetCalendarView() {
   const isReady = calendar.status === "ready";
   const isPurchased = calendar.status === "purchased";
   const sortedMonths = calendar.months.length > 0
-    ? [...calendar.months].sort((a, b) => a.month - b.month)
+    ? [...calendar.months].sort((a, b) => a.year - b.year || a.month - b.month)
     : [];
   const progress = calendar.totalMonths > 0
     ? Math.round((calendar.generatedCount / calendar.totalMonths) * 100)
     : 0;
+
+  // Build calendar title from the date range
+  const firstMonth = sortedMonths[0];
+  const lastMonth = sortedMonths[sortedMonths.length - 1];
+  const titleRange = firstMonth && lastMonth
+    ? `${MONTH_NAMES[firstMonth.month - 1]} ${firstMonth.year} — ${MONTH_NAMES[lastMonth.month - 1]} ${lastMonth.year}`
+    : "Holiday Calendar";
 
   const monthsPerPage = 6;
   const totalPages = Math.ceil(sortedMonths.length / monthsPerPage);
@@ -233,6 +238,13 @@ export default function PetCalendarView() {
     currentPage * monthsPerPage,
     (currentPage + 1) * monthsPerPage
   );
+
+  // Page label from actual month data
+  const pageFirst = visibleMonths[0];
+  const pageLast = visibleMonths[visibleMonths.length - 1];
+  const pageLabel = pageFirst && pageLast
+    ? `${MONTH_NAMES[pageFirst.month - 1]} — ${MONTH_NAMES[pageLast.month - 1]}`
+    : "";
 
   return (
     <main className="pt-24 pb-16 px-6">
@@ -243,13 +255,13 @@ export default function PetCalendarView() {
           </Button>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-foreground" data-testid="text-calendar-title">
-              {calendar.petName}'s {calendarYear} Holiday Calendar
+              {calendar.petName}'s {titleRange}
             </h1>
             <p className="text-sm text-muted-foreground">
               {isPurchased
                 ? "All images unlocked — right-click to save"
                 : isReady
-                ? "Preview your calendar below"
+                ? `Preview the first ${PREVIEW_MONTHS} months free — purchase to unlock all 12`
                 : `Generating images... ${calendar.generatedCount} of ${calendar.totalMonths}`}
             </p>
           </div>
@@ -268,15 +280,20 @@ export default function PetCalendarView() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-          {visibleMonths.map((month) => (
-            <MonthCalendarCard
-              key={month.id}
-              month={month}
-              petName={calendar.petName}
-              isUnlocked={isPurchased}
-              year={calendarYear}
-            />
-          ))}
+          {visibleMonths.map((month, idx) => {
+            // Global index of this month in the full sorted list
+            const globalIdx = currentPage * monthsPerPage + idx;
+            // First N months are always unlocked as preview; all unlocked if purchased
+            const isUnlocked = isPurchased || globalIdx < PREVIEW_MONTHS;
+            return (
+              <MonthCalendarCard
+                key={month.id}
+                month={month}
+                petName={calendar.petName}
+                isUnlocked={isUnlocked}
+              />
+            );
+          })}
         </div>
 
         {totalPages > 1 && (
@@ -292,7 +309,7 @@ export default function PetCalendarView() {
               Previous
             </Button>
             <span className="text-sm text-muted-foreground">
-              {currentPage === 0 ? "Jan — Jun" : "Jul — Dec"}
+              {pageLabel}
             </span>
             <Button
               variant="outline"

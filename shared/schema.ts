@@ -59,6 +59,7 @@ export const petCalendarMonths = pgTable("pet_calendar_months", {
   id: serial("id").primaryKey(),
   calendarId: integer("calendar_id").notNull().references(() => petCalendars.id, { onDelete: "cascade" }),
   month: integer("month").notNull(),
+  year: integer("year").notNull().default(2026),
   holidayName: text("holiday_name").notNull(),
   imageUrl: text("image_url"),
   generated: integer("generated").default(0).notNull(),
