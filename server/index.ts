@@ -73,9 +73,9 @@ async function initSquare() {
   squareEnabled = true;
   log("Square configured (access token + location ID found)");
 
-  // Look up team members and map to groomers
+  // Look up team members, map to groomers, and fetch catalog
   try {
-    const { listSquareTeamMembers } = require("./squareClient") as typeof import("./squareClient");
+    const { listSquareTeamMembers, initSquareCatalog } = require("./squareClient") as typeof import("./squareClient");
     const { populateTeamMemberIds } = require("./groomerConfig") as typeof import("./groomerConfig");
 
     const teamMembers = await listSquareTeamMembers();
@@ -86,6 +86,9 @@ async function initSquare() {
     } else {
       log("Square: No team members found — groomer IDs will remain unmapped");
     }
+
+    // Fetch Square catalog so bookings can look up service variation IDs
+    await initSquareCatalog();
 
     log("Square: Using hardcoded groomer schedules + bookings.list() for availability");
   } catch (err: any) {
