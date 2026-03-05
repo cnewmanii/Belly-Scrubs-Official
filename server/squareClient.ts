@@ -107,15 +107,19 @@ export async function initSquareCatalog(): Promise<void> {
 /**
  * Match a website booking to a Square catalog service variation.
  *
- * The website sends serviceId (e.g. "basic-grooming") and serviceName which
- * includes size info (e.g. "Basic Grooming Package - Medium (26-55 lbs), Short Hair").
- * Square catalog services are named like "Basic Groom - Medium Dog".
+ * Website sends:
+ *   serviceId  = "basic-grooming" | "deluxe-grooming" | "cat-bath" | ...
+ *   serviceName = "Deluxe Grooming Package - Medium (26-55 lbs), Short Hair"
  *
- * Matching strategy:
- * 1. Normalize both strings to lowercase
- * 2. Determine the service type keyword from serviceId
- * 3. Extract size from serviceName if present
- * 4. Find the catalog entry that matches both type and size
+ * Square catalog has:
+ *   categoryName = "Deluxe Groom - Medium Dog"   (parent item)
+ *   name         = "Short Haired"                 (variation)
+ *
+ * Strategy:
+ * 1. Parse serviceId → service type (basic/deluxe/cat-*)
+ * 2. Parse serviceName → size (small/medium/large/extra large) + hair (short/long)
+ * 3. Match service type + size against CATEGORY name
+ * 4. Match hair type against VARIATION name
  */
 export function lookupCatalogService(
   serviceId: string,
@@ -124,68 +128,87 @@ export function lookupCatalogService(
   if (catalogServices.length === 0) return null;
 
   const nameLC = serviceName.toLowerCase();
+  const idLC = serviceId.toLowerCase();
 
-  // Determine what to search for based on the website service ID
-  const serviceKeywords: Record<string, string[]> = {
+  // --- Step 1: Determine service type keywords to match against category ---
+  const categoryKeywords: Record<string, string[]> = {
     "basic-grooming": ["basic"],
     "deluxe-grooming": ["deluxe"],
     "cat-bath": ["cat bath"],
     "cat-groom": ["cat groom"],
-    "cat-nail-trim": ["cat nail", "nail trim", "nail cap"],
+    "cat-nail-trim": ["cat nail", "nail trim - cat"],
   };
+  const typeKeywords = categoryKeywords[idLC];
 
-  const keywords = serviceKeywords[serviceId];
+  // --- Step 2: Extract size from serviceName ---
+  // Match "Extra Large" first, then single words
+  let size: string | null = null;
+  if (nameLC.includes("extra large")) {
+    size = "extra large";
+  } else {
+    const sizeMatch = nameLC.match(/\b(small|medium|large)\b/);
+    size = sizeMatch ? sizeMatch[1] : null;
+  }
 
-  // Extract size from the serviceName (e.g. "- Small (Up to 25 lbs)")
-  const sizeMatch = nameLC.match(/\b(small|medium|large|xl)\b/);
-  const size = sizeMatch ? sizeMatch[1] : null;
+  // --- Step 3: Extract hair type from serviceName ---
+  let hairType: "short" | "long" | null = null;
+  if (nameLC.includes("short hair")) {
+    hairType = "short";
+  } else if (nameLC.includes("long hair")) {
+    hairType = "long";
+  }
 
-  // Score each catalog service and pick the best match
+  const isCatService = idLC.startsWith("cat-");
+
+  console.log(`SQUARE CATALOG: Parsing booking — serviceId="${serviceId}" serviceName="${serviceName}"`);
+  console.log(`SQUARE CATALOG:   type=${typeKeywords ? typeKeywords.join("/") : "unknown"}, size=${size ?? "none"}, hair=${hairType ?? "none"}, isCat=${isCatService}`);
+
+  // --- Step 4: Find matching catalog entry ---
   let bestMatch: SquareCatalogService | null = null;
-  let bestScore = 0;
 
   for (const svc of catalogServices) {
-    const catLC = svc.name.toLowerCase();
-    const catCategoryLC = svc.categoryName.toLowerCase();
-    let score = 0;
+    const varLC = svc.name.toLowerCase();          // variation: "Short Haired", "Long Haired", "Regular"
+    const catLC = svc.categoryName.toLowerCase();   // category:  "Deluxe Groom - Medium Dog"
 
-    // Check if the catalog name or category matches our service type keywords
-    if (keywords) {
-      const matchesKeyword = keywords.some(
-        (kw) => catLC.includes(kw) || catCategoryLC.includes(kw),
-      );
-      if (matchesKeyword) score += 10;
-      else continue; // Wrong service type, skip
+    // 4a. Match service type against CATEGORY
+    if (typeKeywords) {
+      const matchesType = typeKeywords.some((kw) => catLC.includes(kw));
+      if (!matchesType) continue;
     } else {
-      // Unknown serviceId — try direct substring matching
+      // Unknown serviceId — try matching the id words against category
       const idWords = serviceId.replace(/-/g, " ");
-      if (catLC.includes(idWords) || catCategoryLC.includes(idWords)) score += 5;
-      else continue;
+      if (!catLC.includes(idWords)) continue;
     }
 
-    // Size matching
+    // 4b. Match size against CATEGORY (dog services only)
     if (size) {
-      if (catLC.includes(size)) {
-        score += 5; // Exact size match
-      } else {
-        // Has a size requirement but this variation doesn't match — skip
-        continue;
-      }
-    } else {
-      // No size in booking — for cat services this is fine, prefer exact name match
-      if (catLC === catCategoryLC.toLowerCase()) score += 1;
+      if (!catLC.includes(size)) continue;
+    } else if (!isCatService) {
+      // Dog service without size info — can't match reliably
+      continue;
     }
 
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = svc;
+    // 4c. Match hair type against VARIATION name
+    if (hairType) {
+      if (!varLC.includes(hairType)) continue;
+    } else if (!isCatService) {
+      // Dog service without hair type — default to short
+      if (!varLC.includes("short")) continue;
     }
+    // Cat services: variation is "Regular", no hair filtering needed
+
+    bestMatch = svc;
+    break; // Exact match found
   }
 
   if (bestMatch) {
-    console.log(`SQUARE CATALOG: Matched "${serviceName}" → "${bestMatch.name}" (id=${bestMatch.variationId}, dur=${bestMatch.durationMinutes}min)`);
+    console.log(`SQUARE CATALOG: ✓ Matched → variation="${bestMatch.name}" category="${bestMatch.categoryName}" (id=${bestMatch.variationId}, dur=${bestMatch.durationMinutes}min)`);
   } else {
-    console.log(`SQUARE CATALOG: No match found for "${serviceName}" (serviceId=${serviceId})`);
+    console.log(`SQUARE CATALOG: ✗ No match for serviceId="${serviceId}" serviceName="${serviceName}"`);
+    console.log(`SQUARE CATALOG:   Available catalog entries:`);
+    for (const svc of catalogServices) {
+      console.log(`SQUARE CATALOG:     - variation="${svc.name}" category="${svc.categoryName}"`);
+    }
   }
 
   return bestMatch;
