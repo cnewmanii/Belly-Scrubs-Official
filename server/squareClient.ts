@@ -33,13 +33,172 @@ export function getSquareLocationId(): string {
   return locationId;
 }
 
+// ---------------------------------------------------------------------------
+// Square Catalog — service variation lookup
+// ---------------------------------------------------------------------------
+
+export interface SquareCatalogService {
+  name: string;              // e.g. "Basic Groom - Small Dog"
+  variationId: string;       // Square catalog variation ID
+  variationVersion: bigint;  // Square catalog variation version
+  durationMinutes: number;   // Service duration from catalog
+  categoryName: string;      // Parent item name, e.g. "Basic Groom"
+}
+
+/** In-memory catalog populated at startup by initSquareCatalog(). */
+let catalogServices: SquareCatalogService[] = [];
+
+/**
+ * Fetch all APPOINTMENTS_SERVICE items from the Square Catalog and store them
+ * in memory for booking lookups. Call once during server startup.
+ */
+export async function initSquareCatalog(): Promise<void> {
+  const client = getSquareClient();
+  const found: SquareCatalogService[] = [];
+  let cursor: string | undefined;
+
+  console.log("SQUARE CATALOG: Fetching bookable services...");
+
+  do {
+    const response = await client.catalog.list({
+      types: "ITEM",
+      ...(cursor ? { cursor } : {}),
+    });
+
+    for (const obj of response.data || []) {
+      const itemData = obj.itemData;
+      if (!itemData || itemData.productType !== "APPOINTMENTS_SERVICE") continue;
+
+      const categoryName = itemData.name || "(unnamed)";
+
+      for (const variation of itemData.variations || []) {
+        const varData = variation.itemVariationData;
+        const durationMs = varData?.serviceDuration;
+        const durationMinutes = durationMs
+          ? Math.round(Number(durationMs) / 60000)
+          : 120; // default 2h if not set
+
+        found.push({
+          name: varData?.name || categoryName,
+          variationId: variation.id || "unknown",
+          variationVersion: variation.version ?? BigInt(0),
+          durationMinutes,
+          categoryName,
+        });
+      }
+    }
+
+    cursor = (response as any).cursor;
+  } while (cursor);
+
+  catalogServices = found;
+
+  if (found.length === 0) {
+    console.log("SQUARE CATALOG: No bookable services found in catalog.");
+    console.log("SQUARE CATALOG: Create services in Square Dashboard > Appointments > Services");
+  } else {
+    console.log(`SQUARE CATALOG: Found ${found.length} service variation(s):`);
+    for (const svc of found) {
+      console.log(`  - "${svc.name}" (category="${svc.categoryName}") id=${svc.variationId} ver=${svc.variationVersion} dur=${svc.durationMinutes}min`);
+    }
+  }
+}
+
+/**
+ * Match a website booking to a Square catalog service variation.
+ *
+ * The website sends serviceId (e.g. "basic-grooming") and serviceName which
+ * includes size info (e.g. "Basic Grooming Package - Medium (26-55 lbs), Short Hair").
+ * Square catalog services are named like "Basic Groom - Medium Dog".
+ *
+ * Matching strategy:
+ * 1. Normalize both strings to lowercase
+ * 2. Determine the service type keyword from serviceId
+ * 3. Extract size from serviceName if present
+ * 4. Find the catalog entry that matches both type and size
+ */
+export function lookupCatalogService(
+  serviceId: string,
+  serviceName: string,
+): SquareCatalogService | null {
+  if (catalogServices.length === 0) return null;
+
+  const nameLC = serviceName.toLowerCase();
+
+  // Determine what to search for based on the website service ID
+  const serviceKeywords: Record<string, string[]> = {
+    "basic-grooming": ["basic"],
+    "deluxe-grooming": ["deluxe"],
+    "cat-bath": ["cat bath"],
+    "cat-groom": ["cat groom"],
+    "cat-nail-trim": ["cat nail", "nail trim", "nail cap"],
+  };
+
+  const keywords = serviceKeywords[serviceId];
+
+  // Extract size from the serviceName (e.g. "- Small (Up to 25 lbs)")
+  const sizeMatch = nameLC.match(/\b(small|medium|large|xl)\b/);
+  const size = sizeMatch ? sizeMatch[1] : null;
+
+  // Score each catalog service and pick the best match
+  let bestMatch: SquareCatalogService | null = null;
+  let bestScore = 0;
+
+  for (const svc of catalogServices) {
+    const catLC = svc.name.toLowerCase();
+    const catCategoryLC = svc.categoryName.toLowerCase();
+    let score = 0;
+
+    // Check if the catalog name or category matches our service type keywords
+    if (keywords) {
+      const matchesKeyword = keywords.some(
+        (kw) => catLC.includes(kw) || catCategoryLC.includes(kw),
+      );
+      if (matchesKeyword) score += 10;
+      else continue; // Wrong service type, skip
+    } else {
+      // Unknown serviceId — try direct substring matching
+      const idWords = serviceId.replace(/-/g, " ");
+      if (catLC.includes(idWords) || catCategoryLC.includes(idWords)) score += 5;
+      else continue;
+    }
+
+    // Size matching
+    if (size) {
+      if (catLC.includes(size)) {
+        score += 5; // Exact size match
+      } else {
+        // Has a size requirement but this variation doesn't match — skip
+        continue;
+      }
+    } else {
+      // No size in booking — for cat services this is fine, prefer exact name match
+      if (catLC === catCategoryLC.toLowerCase()) score += 1;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = svc;
+    }
+  }
+
+  if (bestMatch) {
+    console.log(`SQUARE CATALOG: Matched "${serviceName}" → "${bestMatch.name}" (id=${bestMatch.variationId}, dur=${bestMatch.durationMinutes}min)`);
+  } else {
+    console.log(`SQUARE CATALOG: No match found for "${serviceName}" (serviceId=${serviceId})`);
+  }
+
+  return bestMatch;
+}
+
 export interface SquareAppointmentData {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
   petName: string;
   petBreed: string | null;
-  serviceName: string;
+  serviceId: string;    // e.g. "basic-grooming", "cat-bath"
+  serviceName: string;  // e.g. "Basic Grooming Package - Small (Up to 25 lbs), Short Hair"
   addOns: string[];
   date: string; // YYYY-MM-DD
   time: string; // HH:MM (24hr)
@@ -109,29 +268,30 @@ export async function createSquareAppointment(
       .filter(Boolean)
       .join("\n");
 
+    // Look up the matching Square catalog service for this booking
+    const catalogMatch = lookupCatalogService(data.serviceId, data.serviceName);
+    const durationMinutes = catalogMatch?.durationMinutes ?? 120;
+
+    const appointmentSegment: any = {
+      durationMinutes,
+      teamMemberId: "anyone", // Let Square assign
+    };
+
+    if (catalogMatch) {
+      appointmentSegment.serviceVariationId = catalogMatch.variationId;
+      appointmentSegment.serviceVariationVersion = catalogMatch.variationVersion;
+      console.log(`SQUARE: Using catalog service "${catalogMatch.name}" (dur=${durationMinutes}min)`);
+    } else {
+      console.log(`SQUARE: No catalog match for "${data.serviceName}" — booking without serviceVariationId`);
+    }
+
     const bookingRequest: any = {
       booking: {
         startAt: startAtISO,
         locationId,
         customerId,
         customerNote: bookingNote,
-        appointmentSegments: [
-          {
-            durationMinutes: 120, // Default 2-hour appointment
-            teamMemberId: "anyone", // Let Square assign
-            // serviceVariationId and serviceVariationVersion are required
-            // if the location has bookable catalog services configured.
-            // If these env vars are set, include them.
-            ...(process.env.SQUARE_SERVICE_VARIATION_ID
-              ? {
-                  serviceVariationId: process.env.SQUARE_SERVICE_VARIATION_ID,
-                  serviceVariationVersion: process.env.SQUARE_SERVICE_VARIATION_VERSION
-                    ? BigInt(process.env.SQUARE_SERVICE_VARIATION_VERSION)
-                    : undefined,
-                }
-              : {}),
-          },
-        ],
+        appointmentSegments: [appointmentSegment],
       },
       idempotencyKey: `belly-scrubs-booking-${data.customerEmail}-${data.date}-${data.time}-${Date.now()}`,
     };

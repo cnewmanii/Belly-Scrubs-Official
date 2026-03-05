@@ -1,7 +1,7 @@
 /**
  * Utility script to list all bookable services from Square Catalog.
- * Prints the service_variation_id and service_variation_version needed
- * for the SQUARE_SERVICE_VARIATION_ID / SQUARE_SERVICE_VARIATION_VERSION env vars.
+ * Prints each service's variation ID, version, and name.
+ * Useful for debugging the catalog lookup in server/squareClient.ts.
  *
  * Usage: npx tsx scripts/get-square-services.ts
  * Requires: SQUARE_ACCESS_TOKEN environment variable
@@ -84,7 +84,7 @@ async function main() {
     console.log();
   }
 
-  console.log("Add these to your .env file to enable direct Bookings API integration.");
+  console.log("The server fetches this catalog automatically on startup (initSquareCatalog).");
 }
 
 main().catch((err) => {

@@ -471,6 +471,7 @@ export function registerBookingRoutes(app: Express) {
           customerPhone: booking.customerPhone,
           petName: booking.petName,
           petBreed: booking.petBreed,
+          serviceId: booking.serviceId,
           serviceName: booking.serviceName,
           addOns: booking.addOns || [],
           date: booking.date,
