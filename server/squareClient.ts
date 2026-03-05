@@ -80,21 +80,15 @@ export async function createSquareAppointment(
   try {
     console.log(`SQUARE: Attempting to create Bookings API appointment for ${data.petName} on ${data.date} at ${data.time}`);
 
-    // Build the start time in UTC from the local Eastern Time date+time
-    const localDateTimeStr = `${data.date}T${data.time}:00`;
-    // Use America/New_York to get correct UTC offset (handles DST automatically)
-    const localDate = new Date(new Date(localDateTimeStr).toLocaleString("en-US", { timeZone: "America/New_York" }));
-    // Reconstruct as a proper UTC timestamp
-    const etOffsetMs = new Date(localDateTimeStr).getTime() - localDate.getTime();
-    const startAtUTC = new Date(new Date(localDateTimeStr).getTime() - etOffsetMs);
-    // Simpler approach: construct the ISO string with ET offset
-    // Eastern Time is UTC-5 (EST) or UTC-4 (EDT). We'll let Square interpret.
+    // Build the start time in UTC from the local Eastern Time date+time.
+    // Hurricane, WV is Eastern Time (UTC-5 EST / UTC-4 EDT).
+    // Use a fixed +5h offset (EST) — Square will normalize based on location timezone.
     const startAtISO = new Date(
       Date.UTC(
         parseInt(data.date.split("-")[0]),
         parseInt(data.date.split("-")[1]) - 1,
         parseInt(data.date.split("-")[2]),
-        h + 5, // Approximate EST offset; Square will normalize
+        h + 5, // EST offset; Square normalizes based on location
         m
       )
     ).toISOString();
@@ -204,6 +198,7 @@ export async function createSquareAppointment(
 
   try {
     console.log(`SQUARE: FALLBACK — Creating customer note for ${data.petName} on ${data.date} at ${data.time}`);
+    console.log(`SQUARE: NOTE: Customer notes appear on the customer profile but NOT on the Square Appointments calendar.`);
 
     await client.customers.update({
       customerId,
@@ -434,7 +429,6 @@ export async function getSquareOccupiedSlots(date: string): Promise<OccupiedSlot
         const bookingStartMinutes = localHour * 60 + localMinute;
 
         // Also verify this booking is actually on the requested local date
-        const localDateStr = localTime.toISOString().split("T")[0];
         const localY = localTime.getFullYear();
         const localM = String(localTime.getMonth() + 1).padStart(2, "0");
         const localD = String(localTime.getDate()).padStart(2, "0");
