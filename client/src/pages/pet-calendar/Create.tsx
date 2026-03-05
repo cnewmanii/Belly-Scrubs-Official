@@ -38,6 +38,7 @@ export default function PetCalendarCreate() {
   const { toast } = useToast();
   const [petName, setPetName] = useState("");
   const [petType, setPetType] = useState<"dog" | "cat" | null>(null);
+  const [petGender, setPetGender] = useState<"male" | "female" | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -113,6 +114,10 @@ export default function PetCalendarCreate() {
       toast({ title: "Please select dog or cat", variant: "destructive" });
       return;
     }
+    if (!petGender) {
+      toast({ title: "Please select male or female", variant: "destructive" });
+      return;
+    }
     if (!photo) {
       toast({ title: "Please upload a photo of your pet", variant: "destructive" });
       return;
@@ -123,6 +128,7 @@ export default function PetCalendarCreate() {
       const formData = new FormData();
       formData.append("petName", petName);
       formData.append("petType", petType);
+      formData.append("petGender", petGender);
       formData.append("photo", photo);
 
       const res = await fetch("/api/pet-calendars", { method: "POST", body: formData });
@@ -285,6 +291,36 @@ export default function PetCalendarCreate() {
                   >
                     <Cat className="w-6 h-6" />
                     <span className="font-medium">Cat</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Gender</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setPetGender("male")}
+                    className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                      petGender === "male"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/40 text-muted-foreground"
+                    }`}
+                    data-testid="button-pet-gender-male"
+                  >
+                    <span className="text-lg">&#9794;</span>
+                    <span className="font-medium">Male</span>
+                  </button>
+                  <button
+                    onClick={() => setPetGender("female")}
+                    className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                      petGender === "female"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/40 text-muted-foreground"
+                    }`}
+                    data-testid="button-pet-gender-female"
+                  >
+                    <span className="text-lg">&#9792;</span>
+                    <span className="font-medium">Female</span>
                   </button>
                 </div>
               </div>
