@@ -402,6 +402,26 @@ export async function createSquareAppointment(
     console.log(`SQUARE: ✓ Booking created successfully! ID: ${bookingId}`);
     console.log(`SQUARE: Booking status: ${bookingResponse.booking?.status}`);
     log(`Square booking created: ${bookingId} — ${data.date} ${data.time}`, "square");
+
+    // Create invoice with deposit credit if a Stripe deposit was collected
+    if (data.depositAmount > 0) {
+      try {
+        await createSquareInvoice(
+          customerId,
+          locationId,
+          data.serviceName,
+          data.totalPrice,
+          data.depositAmount,
+          data.date,
+          data.petName,
+        );
+      } catch (invoiceErr: any) {
+        // Invoice failure should not block the booking
+        console.error(`SQUARE INVOICE: Failed to create invoice: ${invoiceErr.message}`);
+        log(`Square invoice creation failed: ${invoiceErr.message}`, "square");
+      }
+    }
+
     return bookingId;
   } catch (bookingError: any) {
     // --- DETAILED ERROR LOGGING for Bookings API failure ---
@@ -471,6 +491,100 @@ export async function createSquareAppointment(
 }
 
 /**
+ * Create a Square invoice for the remaining balance after a Stripe deposit.
+ * The invoice shows the full service price with a discount line for the deposit.
+ */
+async function createSquareInvoice(
+  customerId: string,
+  locationId: string,
+  serviceName: string,
+  totalPrice: number,
+  depositAmount: number,
+  dueDate: string,
+  petName: string,
+): Promise<string> {
+  const client = getSquareClient();
+  const remainingBalance = totalPrice - depositAmount;
+
+  console.log(`SQUARE INVOICE: Creating invoice for ${petName} — total=$${totalPrice}, deposit=$${depositAmount}, remaining=$${remainingBalance}`);
+
+  // Step 1: Create an order with the service line item and deposit discount
+  const orderResponse = await client.orders.create({
+    order: {
+      locationId,
+      customerId,
+      lineItems: [
+        {
+          name: `${serviceName} — ${petName}`,
+          quantity: "1",
+          basePriceMoney: {
+            amount: BigInt(totalPrice * 100), // Convert dollars to cents
+            currency: "USD",
+          },
+        },
+      ],
+      discounts: [
+        {
+          name: "Online deposit paid via Stripe (non-refundable)",
+          amountMoney: {
+            amount: BigInt(depositAmount * 100),
+            currency: "USD",
+          },
+          scope: "ORDER",
+        },
+      ],
+    },
+    idempotencyKey: `belly-scrubs-invoice-order-${customerId}-${dueDate}-${Date.now()}`,
+  });
+
+  const orderId = orderResponse.order?.id;
+  if (!orderId) {
+    throw new Error("Square did not return an order ID for invoice");
+  }
+  console.log(`SQUARE INVOICE: Created order ${orderId}`);
+
+  // Step 2: Create the invoice linked to the order
+  const invoiceResponse = await client.invoices.create({
+    invoice: {
+      locationId,
+      orderId,
+      primaryRecipient: {
+        customerId,
+      },
+      paymentRequests: [
+        {
+          requestType: "BALANCE",
+          dueDate,
+        },
+      ],
+      deliveryMethod: "SHARE_MANUALLY",
+      title: `Grooming — ${petName}`,
+      description: `${serviceName}\nDeposit of $${depositAmount} collected online. Remaining balance due at appointment.`,
+    },
+    idempotencyKey: `belly-scrubs-invoice-${customerId}-${dueDate}-${Date.now()}`,
+  });
+
+  const invoiceId = invoiceResponse.invoice?.id;
+  if (!invoiceId) {
+    throw new Error("Square did not return an invoice ID");
+  }
+  console.log(`SQUARE INVOICE: Created draft invoice ${invoiceId}`);
+
+  // Step 3: Publish the invoice so it's visible in Square Dashboard
+  const invoiceVersion = invoiceResponse.invoice?.version ?? 0;
+  await client.invoices.publish({
+    invoiceId,
+    version: invoiceVersion,
+    idempotencyKey: `belly-scrubs-invoice-publish-${invoiceId}-${Date.now()}`,
+  });
+
+  console.log(`SQUARE INVOICE: Published invoice ${invoiceId} — remaining balance $${remainingBalance} due ${dueDate}`);
+  log(`Square invoice created: ${invoiceId} — $${remainingBalance} remaining (deposit $${depositAmount})`, "square");
+
+  return invoiceId;
+}
+
+/**
  * Find an existing Square customer by email, or create a new one.
  */
 async function findOrCreateSquareCustomer(
@@ -480,9 +594,11 @@ async function findOrCreateSquareCustomer(
 ): Promise<string> {
   const client = getSquareClient();
 
+  console.log(`SQUARE CUSTOMER: Looking up customer — name="${name}" email="${email}" phone="${phone}"`);
+
   // Search for existing customer by email
   try {
-    console.log(`SQUARE: Searching for customer by email: ${email}`);
+    console.log(`SQUARE CUSTOMER: Searching by email: ${email}`);
     const searchResponse = await client.customers.search({
       query: {
         filter: {
@@ -494,10 +610,10 @@ async function findOrCreateSquareCustomer(
     });
 
     if (searchResponse.customers && searchResponse.customers.length > 0) {
-      console.log(`SQUARE: Found existing customer: ${searchResponse.customers[0].id}`);
+      console.log(`SQUARE CUSTOMER: Found existing customer: ${searchResponse.customers[0].id} (${searchResponse.customers[0].givenName} ${searchResponse.customers[0].familyName})`);
       return searchResponse.customers[0].id!;
     }
-    console.log("SQUARE: No existing customer found, creating new...");
+    console.log("SQUARE CUSTOMER: No existing customer found, creating new...");
   } catch (searchErr: any) {
     console.error("SQUARE: Customer search failed:", searchErr.message);
     // Search failed, try creating
@@ -507,6 +623,8 @@ async function findOrCreateSquareCustomer(
   const nameParts = name.trim().split(/\s+/);
   const givenName = nameParts[0] || name;
   const familyName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
+
+  console.log(`SQUARE CUSTOMER: Creating new customer — givenName="${givenName}" familyName="${familyName || ""}" email="${email}" phone="${phone}"`);
 
   const createResponse = await client.customers.create({
     givenName,
@@ -521,6 +639,7 @@ async function findOrCreateSquareCustomer(
     throw new Error("Square did not return a customer ID");
   }
 
+  console.log(`SQUARE CUSTOMER: Created new customer: ${customerId}`);
   return customerId;
 }
 
