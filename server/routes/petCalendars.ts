@@ -40,24 +40,91 @@ function getOpenAIClient() {
 
 const CALENDAR_PRICE_CENTS = 2999;
 
-/** Holiday/seasonal themes keyed by month number (1-12). Dramatic, over-the-top costumed scenes. */
-const MONTH_THEMES: Record<number, { holiday: string; prompt: string }> = {
-  1:  { holiday: "New Year's Day", prompt: "wearing a glittering gold tuxedo with a sequined bow tie and a \"Happy New Year\" sash, holding a champagne glass in one paw and a sparkling noisemaker in the other, standing on a rooftop party scene with confetti cannons exploding, golden balloons, streamers everywhere, a dazzling city skyline with fireworks bursting in brilliant colors across the midnight sky" },
-  2:  { holiday: "Valentine's Day", prompt: "wearing a dapper red velvet suit with a pink ruffled shirt and heart-shaped sunglasses, holding a giant heart-shaped box of chocolates in one paw and a bouquet of long-stemmed red roses in the other, sitting on a plush pink velvet throne surrounded by floating heart balloons, rose petals scattered everywhere, a romantic candlelit backdrop with twinkling fairy lights" },
-  3:  { holiday: "St. Patrick's Day", prompt: "wearing a full emerald green leprechaun suit with gold-buckled top hat, green velvet tailcoat, and a shamrock bow tie, holding a overflowing pot of gold coins in one paw and an ornate four-leaf clover cane in the other, standing on a lush green hillside with a vibrant double rainbow arching across the sky, gold coins scattered on the ground, clover fields stretching to the horizon" },
-  4:  { holiday: "Easter", prompt: "wearing a pastel lavender Easter suit with a floral waistcoat and a bonnet decorated with spring flowers, holding a woven basket overflowing with ornate hand-painted Easter eggs in one paw and a giant chocolate bunny in the other, sitting in a blooming spring garden with cherry blossoms, tulips, daffodils, baby chicks, and decorated Easter eggs hidden among the flowers" },
-  5:  { holiday: "Mother's Day", prompt: "wearing an elegant floral spring dress with a wide-brimmed sun hat decorated with fresh flowers, holding an enormous bouquet of peonies, roses, and lilies in both paws, standing in a gorgeous sunlit botanical garden with a white gazebo draped in wisteria, butterflies fluttering, a beautifully set tea table with fine china and a tiered cake in the background" },
-  6:  { holiday: "Summer Solstice", prompt: "wearing a vibrant Hawaiian shirt with board shorts, flip-flops, and oversized aviator sunglasses, holding a colorful surfboard under one arm and a tropical drink with an umbrella in the other paw, standing on a pristine white sand beach with crystal turquoise waves, palm trees swaying, a brilliant golden sunset painting the sky in orange, pink, and purple" },
-  7:  { holiday: "Independence Day", prompt: "wearing a full stars-and-stripes Uncle Sam outfit with a tall red-white-and-blue top hat, patriotic tailcoat, and star-spangled vest, holding lit sparklers blazing in both paws, standing proudly on a flag-draped stage with massive fireworks exploding in red, white, and blue across the night sky, American flags waving on both sides, bunting decorations everywhere" },
-  8:  { holiday: "National Pet Day", prompt: "wearing a flashy golden Hollywood outfit with a star-studded cape, a jeweled crown, and a \"Best Pet\" award ribbon, holding a golden trophy in one paw and a royal scepter in the other, sitting on a red carpet with velvet ropes, paparazzi camera flashes, a Walk of Fame star with their name, spotlights beaming, and adoring fans in the background" },
-  9:  { holiday: "Back to School", prompt: "wearing a preppy school uniform with a blazer, plaid tie, and a varsity letter sweater, holding a stack of textbooks in one paw and a shiny red apple in the other, sitting at a classic wooden school desk in a charming classroom with a green chalkboard covered in equations, a globe, school pennants on the walls, pencils, and a bright yellow school bus visible through the window" },
-  10: { holiday: "Halloween", prompt: "wearing a dramatic vampire costume with a sweeping black and red cape, slicked-back hair, and gleaming fangs, holding a carved jack-o-lantern with an eerie glow in one paw and a trick-or-treat bucket overflowing with candy in the other, standing in a misty graveyard with crooked tombstones, a gnarled dead tree, bats flying across a giant glowing full moon, green fog rolling across the ground" },
-  11: { holiday: "Thanksgiving", prompt: "wearing a full Pilgrim outfit with a buckled hat, white collar, and brown vest, holding a magnificent golden roasted turkey on a silver platter in both paws, standing at the head of a lavish Thanksgiving feast table loaded with pumpkin pie, cranberry sauce, cornucopia overflowing with autumn harvest, fall leaves in brilliant orange and red, a cozy log cabin with a roaring fireplace in the background" },
-  12: { holiday: "Christmas", prompt: "wearing a complete Santa Claus suit with wide black belt, golden buckle, fur-trimmed boots, and a red hat with fluffy white pom-pom, holding a bulging sack of wrapped presents over one shoulder and a candy cane staff in the other paw, standing next to a magnificently decorated Christmas tree with glowing lights and ornaments, a stone fireplace with hung stockings, snow falling gently outside a frosted window, warm golden lighting" },
+/**
+ * Holiday/seasonal themes keyed by month number (1-12).
+ * Each month has multiple prompt variants so every calendar is unique.
+ * Prompts use {{HE_SHE}}, {{HIS_HER}}, {{HIM_HER}} placeholders for gendered language.
+ */
+const MONTH_THEMES: Record<number, { holiday: string; prompts: string[] }> = {
+  1: { holiday: "New Year's Day", prompts: [
+    "wearing a glittering gold tuxedo with a sequined bow tie and a \"Happy New Year\" sash, holding a champagne glass in one paw and a sparkling noisemaker in the other, standing on a rooftop party scene with confetti cannons exploding, golden balloons, streamers everywhere, a dazzling city skyline with fireworks bursting in brilliant colors across the midnight sky",
+    "wearing a shimmering silver cocktail outfit with a feathered headband and elbow-length gloves, popping a giant bottle of champagne with golden fizz spraying everywhere, standing inside a luxurious ballroom with crystal chandeliers, a massive glitter ball, art-deco decorations, and a countdown clock striking midnight",
+    "wearing a regal midnight-blue velvet cape with silver star embroidery and a diamond-encrusted party crown, ringing an enormous golden bell with both paws, standing at the top of a grand marble staircase as thousands of paper lanterns float into the starry night sky, fireworks reflecting in {{HIS_HER}} eyes",
+  ]},
+  2: { holiday: "Valentine's Day", prompts: [
+    "wearing a dapper red velvet suit with a pink ruffled shirt and heart-shaped sunglasses, holding a giant heart-shaped box of chocolates in one paw and a bouquet of long-stemmed red roses in the other, sitting on a plush pink velvet throne surrounded by floating heart balloons, rose petals scattered everywhere, a romantic candlelit backdrop with twinkling fairy lights",
+    "wearing an elegant pink ball gown with cascading ruffles and a sparkling heart locket, surrounded by a whirlwind of red and pink rose petals, standing on a Venetian bridge over a shimmering canal with gondolas, heart-shaped lanterns floating in the evening sky, cupid statues on either side",
+    "wearing a charming red-and-white striped waistcoat with a bow tie made of tiny roses, sitting at a cozy Parisian café table set for two with macarons and hot cocoa, the Eiffel Tower glowing pink in the background, heart-shaped confetti falling gently from above",
+  ]},
+  3: { holiday: "St. Patrick's Day", prompts: [
+    "wearing a full emerald green leprechaun suit with gold-buckled top hat, green velvet tailcoat, and a shamrock bow tie, holding an overflowing pot of gold coins in one paw and an ornate four-leaf clover cane in the other, standing on a lush green hillside with a vibrant double rainbow arching across the sky, gold coins scattered on the ground, clover fields stretching to the horizon",
+    "wearing a fancy green tartan kilt with a jeweled clover brooch and a feathered cap, doing a joyful Irish jig on top of a giant mushroom in an enchanted forest, gold coins raining from a magical rainbow overhead, tiny leprechaun houses tucked among glowing moss and shamrocks",
+    "wearing a dashing emerald velvet smoking jacket with gold cufflinks and a top hat overflowing with clovers, lounging on a throne of stacked gold coins inside a hidden cave, rivers of gold cascading like waterfalls, glowing green crystals lining the cavern walls, a magical rainbow entering through the cave mouth",
+  ]},
+  4: { holiday: "Easter", prompts: [
+    "wearing a pastel lavender Easter suit with a floral waistcoat and a bonnet decorated with spring flowers, holding a woven basket overflowing with ornate hand-painted Easter eggs in one paw and a giant chocolate bunny in the other, sitting in a blooming spring garden with cherry blossoms, tulips, daffodils, baby chicks, and decorated Easter eggs hidden among the flowers",
+    "wearing a sunny yellow spring outfit with a daisy-chain crown and pastel rainbow suspenders, riding in a giant decorated Easter egg like a chariot pulled by fluffy bunnies through a meadow of wildflowers, butterflies everywhere, a pastel sky with cotton-candy clouds",
+    "wearing an elegant cream-colored linen suit with a pastel plaid vest and a fresh flower boutonnière, hosting a grand Easter egg hunt in a manicured English garden, standing next to an enormous tower of colorfully decorated eggs, baby lambs frolicking, wisteria arches overhead",
+  ]},
+  5: { holiday: "Mother's Day", prompts: [
+    "wearing an elegant floral spring dress with a wide-brimmed sun hat decorated with fresh flowers, holding an enormous bouquet of peonies, roses, and lilies in both paws, standing in a gorgeous sunlit botanical garden with a white gazebo draped in wisteria, butterflies fluttering, a beautifully set tea table with fine china and a tiered cake in the background",
+    "wearing a chic pastel pantsuit with a corsage of fresh gardenias, sitting in a luxurious wicker chair on a sunlit veranda, surrounded by hanging flower baskets and potted orchids, a lace-covered table with a stack of beautifully wrapped gifts and a \"Best Mom\" trophy, hummingbirds visiting nearby blooms",
+    "wearing a flowing silk kimono-inspired robe with hand-painted cherry blossoms, holding a delicate porcelain teacup in one paw, relaxing in a serene Japanese zen garden with a koi pond, stepping stones, blooming azaleas, and a wooden bridge, soft morning light filtering through maple trees",
+  ]},
+  6: { holiday: "Summer Solstice", prompts: [
+    "wearing a vibrant Hawaiian shirt with board shorts, flip-flops, and oversized aviator sunglasses, holding a colorful surfboard under one arm and a tropical drink with an umbrella in the other paw, standing on a pristine white sand beach with crystal turquoise waves, palm trees swaying, a brilliant golden sunset painting the sky in orange, pink, and purple",
+    "wearing a stylish nautical captain's outfit with a white blazer, gold epaulettes, and a captain's hat, standing at the wheel of a gleaming yacht on sparkling azure waters, dolphins jumping alongside, a tropical island paradise visible in the distance, golden sun overhead",
+    "wearing a retro 1960s pool party outfit with cat-eye sunglasses and a colorful sarong, floating on a giant flamingo pool float in a sparkling turquoise infinity pool overlooking the ocean, tiki torches lit around the deck, tropical cocktails on a floating tray, palm trees swaying in a warm breeze",
+  ]},
+  7: { holiday: "Independence Day", prompts: [
+    "wearing a full stars-and-stripes Uncle Sam outfit with a tall red-white-and-blue top hat, patriotic tailcoat, and star-spangled vest, holding lit sparklers blazing in both paws, standing proudly on a flag-draped stage with massive fireworks exploding in red, white, and blue across the night sky, American flags waving on both sides, bunting decorations everywhere",
+    "wearing a patriotic red-white-and-blue bomber jacket with star patches and aviator goggles, riding on the wing of a vintage biplane doing a flyover as red, white, and blue smoke trails paint the sky, a massive crowd cheering below at a Fourth of July festival, fireworks beginning to burst at dusk",
+    "wearing a star-spangled rodeo outfit with a red-white-and-blue cowboy hat, fringed vest, and silver belt buckle shaped like an eagle, riding a mechanical bull at a county fair with ferris wheels, cotton candy stands, sparklers, and a spectacular fireworks display lighting up the twilight sky",
+  ]},
+  8: { holiday: "National Pet Day", prompts: [
+    "wearing a flashy golden Hollywood outfit with a star-studded cape, a jeweled crown, and a \"Best Pet\" award ribbon, holding a golden trophy in one paw and a royal scepter in the other, sitting on a red carpet with velvet ropes, paparazzi camera flashes, a Walk of Fame star with {{HIS_HER}} name, spotlights beaming, and adoring fans in the background",
+    "wearing a superhero costume with a flowing cape, a custom emblem on {{HIS_HER}} chest, and a mask, striking a heroic pose on top of a skyscraper at sunset, the city skyline glowing behind {{HIM_HER}}, a spotlight shining {{HIS_HER}} symbol in the clouds, confetti and streamers swirling in the wind",
+    "wearing a luxurious royal purple robe with ermine trim and a golden crown studded with gems, sitting on an ornate golden throne in a grand palace hall, velvet cushions everywhere, servants presenting platters of gourmet treats, a stained-glass window casting colorful light patterns across the marble floor",
+  ]},
+  9: { holiday: "Back to School", prompts: [
+    "wearing a preppy school uniform with a blazer, plaid tie, and a varsity letter sweater, holding a stack of textbooks in one paw and a shiny red apple in the other, sitting at a classic wooden school desk in a charming classroom with a green chalkboard covered in equations, a globe, school pennants on the walls, pencils, and a bright yellow school bus visible through the window",
+    "wearing a graduation cap and gown with honors cords and a diploma in one paw, tossing {{HIS_HER}} cap in the air with the other, standing on a grand university campus with ivy-covered brick buildings, a clock tower, falling autumn leaves in warm colors, other graduates celebrating in the background",
+    "wearing a mad-scientist lab coat with wild goggles, surrounded by bubbling beakers and colorful chemistry experiments in a fantastical laboratory, an erupting volcano science project on the table, equations floating in the air, shelves of curiosities, and a robot {{HE_SHE}} built standing beside {{HIM_HER}}",
+  ]},
+  10: { holiday: "Halloween", prompts: [
+    "wearing a dramatic vampire costume with a sweeping black and red cape, slicked-back hair, and gleaming fangs, holding a carved jack-o-lantern with an eerie glow in one paw and a trick-or-treat bucket overflowing with candy in the other, standing in a misty graveyard with crooked tombstones, a gnarled dead tree, bats flying across a giant glowing full moon, green fog rolling across the ground",
+    "wearing an elaborate witch or wizard costume with a tall pointed hat, a star-covered cloak, and a glowing magic wand, casting a sparkling spell over a bubbling cauldron filled with green potion, in a spooky enchanted forest with jack-o-lanterns lining a winding path, owls perched on twisted branches, a haunted castle silhouette against an orange sky",
+    "wearing a classic mummy wrapping that's partially unraveled to show a fancy suit underneath, emerging from an ancient Egyptian sarcophagus in a torch-lit tomb filled with golden treasure, hieroglyphics on the walls, scarab beetles glowing, a swirl of supernatural energy spiraling upward through the pyramid chamber",
+  ]},
+  11: { holiday: "Thanksgiving", prompts: [
+    "wearing a full Pilgrim outfit with a buckled hat, white collar, and brown vest, holding a magnificent golden roasted turkey on a silver platter in both paws, standing at the head of a lavish Thanksgiving feast table loaded with pumpkin pie, cranberry sauce, cornucopia overflowing with autumn harvest, fall leaves in brilliant orange and red, a cozy log cabin with a roaring fireplace in the background",
+    "wearing a cozy hand-knit autumn sweater with fall leaf patterns and a warm scarf, sitting in an oversized rocking chair on a rustic farmhouse porch surrounded by towers of pumpkins, hay bales, corn stalks, a steaming mug of apple cider in one paw, golden sunlight filtering through crimson and amber maple trees, a harvest wagon in the yard",
+    "wearing a fancy chef's outfit with a tall white hat and an apron embroidered with autumn leaves, proudly presenting an enormous cornucopia overflowing with roasted vegetables, pies, and bread, standing in a warm country kitchen with copper pots, dried herbs hanging from rafters, a wood-burning stove, and a window showing a peaceful autumn countryside",
+  ]},
+  12: { holiday: "Christmas", prompts: [
+    "wearing a complete Santa Claus suit with wide black belt, golden buckle, fur-trimmed boots, and a red hat with fluffy white pom-pom, holding a bulging sack of wrapped presents over one shoulder and a candy cane staff in the other paw, standing next to a magnificently decorated Christmas tree with glowing lights and ornaments, a stone fireplace with hung stockings, snow falling gently outside a frosted window, warm golden lighting",
+    "wearing an elegant ice-blue winter ball gown or suit with silver snowflake embroidery, a crystal tiara, and a white fur stole, standing in a magical winter wonderland with a frozen lake, ice sculptures, northern lights shimmering in the sky, snow-covered pine trees decorated with fairy lights, and a horse-drawn sleigh waiting nearby",
+    "wearing a cozy Christmas elf outfit with pointy shoes, striped stockings, and a jingling bell hat, working in Santa's toy workshop surrounded by colorful wrapped presents on conveyor belts, toy trains, teddy bears, a giant candy cane archway, twinkling string lights everywhere, and a window showing reindeer on the snowy rooftop",
+  ]},
 };
 
+/** Pick a random prompt variant for a month. */
+function pickRandomPrompt(month: number): string {
+  const variants = MONTH_THEMES[month].prompts;
+  return variants[Math.floor(Math.random() * variants.length)];
+}
+
+/** Replace gender placeholders in a prompt string. */
+function applyGender(prompt: string, gender: "male" | "female"): string {
+  const isMale = gender === "male";
+  return prompt
+    .replace(/\{\{HE_SHE\}\}/g, isMale ? "he" : "she")
+    .replace(/\{\{HIS_HER\}\}/g, isMale ? "his" : "her")
+    .replace(/\{\{HIM_HER\}\}/g, isMale ? "him" : "her");
+}
+
 /** Build a rolling 12-month schedule starting from the current month. */
-function getRolling12Months(): Array<{ month: number; year: number; holiday: string; prompt: string }> {
+function getRolling12Months(gender: "male" | "female"): Array<{ month: number; year: number; holiday: string; prompt: string }> {
   const now = new Date();
   const startMonth = now.getMonth() + 1; // 1-indexed
   const startYear = now.getFullYear();
@@ -67,7 +134,8 @@ function getRolling12Months(): Array<{ month: number; year: number; holiday: str
     const m = ((startMonth - 1 + i) % 12) + 1; // 1-12
     const y = startYear + Math.floor((startMonth - 1 + i) / 12);
     const theme = MONTH_THEMES[m];
-    result.push({ month: m, year: y, holiday: theme.holiday, prompt: theme.prompt });
+    const rawPrompt = pickRandomPrompt(m);
+    result.push({ month: m, year: y, holiday: theme.holiday, prompt: applyGender(rawPrompt, gender) });
   }
   return result;
 }
@@ -79,11 +147,11 @@ const upload = multer({
 
 const IMAGE_CONCURRENCY = 6;
 
-async function generateMonthImages(calendarId: number, petName: string, petType: string, photoBuffer: Buffer) {
-  console.log(`CALENDAR[${calendarId}]: Starting image generation for ${petName} (${petType}), 12 months`);
+async function generateMonthImages(calendarId: number, petName: string, petType: string, petGender: "male" | "female", photoBuffer: Buffer) {
+  console.log(`CALENDAR[${calendarId}]: Starting image generation for ${petName} (${petType}, ${petGender}), 12 months`);
   await storage.updatePetCalendarStatus(calendarId, "generating");
 
-  const rollingMonths = getRolling12Months();
+  const rollingMonths = getRolling12Months(petGender);
   console.log(`CALENDAR[${calendarId}]: Rolling months: ${rollingMonths.map(m => `${m.month}/${m.year}`).join(", ")}`);
 
   // Pre-create all month rows in parallel so DB writes don't block generation
@@ -106,7 +174,8 @@ async function generateMonthImages(calendarId: number, petName: string, petType:
           try {
             const monthRow = monthRows[idx];
 
-            const prompt = `Professional studio-quality portrait of a ${petType} named ${petName}, anthropomorphized and sitting upright, ${monthInfo.prompt}. CRITICAL: preserve the ${petType}'s exact face, fur coloring, breed features, and eye color from the reference photo — only add the costume and scene around them. Hyper-detailed, dramatic lighting, vivid saturated colors, shot with a high-end DSLR, suitable for a premium printed wall calendar. The ${petType} should look majestic and heroic in the scene.`;
+            const pronoun = petGender === "male" ? "him" : "her";
+            const prompt = `Professional studio-quality portrait of a ${petGender} ${petType} named ${petName}, anthropomorphized and sitting upright, ${monthInfo.prompt}. CRITICAL: preserve the ${petType}'s exact face, fur coloring, breed features, and eye color from the reference photo — only add the costume and scene around ${pronoun}. Hyper-detailed, dramatic lighting, vivid saturated colors, shot with a high-end DSLR, suitable for a premium printed wall calendar. The ${petType} should look majestic and heroic in the scene.`;
 
             console.log(`CALENDAR[${calendarId}]: Generating ${monthInfo.month}/${monthInfo.year} (${monthInfo.holiday})...`);
 
@@ -154,20 +223,22 @@ const RETRY_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 export function registerPetCalendarRoutes(app: Express) {
   app.post("/api/pet-calendars", upload.single("photo"), async (req: Request, res: Response) => {
     try {
-      const { petName, petType } = req.body;
+      const { petName, petType, petGender } = req.body;
       if (!petName || !petType || !req.file) {
         return res.status(400).json({ error: "Missing petName, petType, or photo" });
       }
+      const gender = petGender === "female" ? "female" : "male";
 
       const photoBase64 = req.file.buffer.toString("base64");
 
       const calendar = await storage.createPetCalendar({
         petName,
         petType,
+        petGender: gender,
         photoData: photoBase64,
       });
 
-      generateMonthImages(calendar.id, petName, petType, req.file.buffer).catch(console.error);
+      generateMonthImages(calendar.id, petName, petType, gender, req.file.buffer).catch(console.error);
 
       res.json({ id: calendar.id });
     } catch (err) {
@@ -204,7 +275,7 @@ export function registerPetCalendarRoutes(app: Express) {
 
           // Re-trigger generation with stored photo data
           const photoBuffer = Buffer.from(calendar.photoData, "base64");
-          generateMonthImages(id, calendar.petName, calendar.petType, photoBuffer).catch((err) => {
+          generateMonthImages(id, calendar.petName, calendar.petType, calendar.petGender, photoBuffer).catch((err) => {
             console.error(`CALENDAR[${id}]: Re-triggered generation failed:`, err);
           });
         } else if (ageMs > TEN_MINUTES) {

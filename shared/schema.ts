@@ -37,6 +37,7 @@ export const bookings = pgTable("bookings", {
 });
 
 export const petTypeEnum = pgEnum("pet_type", ["dog", "cat"]);
+export const petGenderEnum = pgEnum("pet_gender", ["male", "female"]);
 export const calendarStatusEnum = pgEnum("calendar_status", [
   "pending",
   "generating",
@@ -48,6 +49,7 @@ export const petCalendars = pgTable("pet_calendars", {
   id: serial("id").primaryKey(),
   petName: text("pet_name").notNull(),
   petType: petTypeEnum("pet_type").notNull(),
+  petGender: petGenderEnum("pet_gender").default("male").notNull(),
   photoData: text("photo_data").notNull(),
   status: calendarStatusEnum("status").default("pending").notNull(),
   customerEmail: text("customer_email"),
