@@ -20,6 +20,7 @@
 - When adding new files (images, assets), they must be committed to git AND pushed to `main` for Railway to see them.
 
 ## Branch Management
+- CRITICAL: Always work directly on main. Never create or push to feature branches unless explicitly asked. When making changes, do: git checkout main && git pull origin main, make changes, then git add -A && git commit && git push origin main. If you get a 403 pushing to main, STOP and tell me — do not fall back to a feature branch.
 - ALWAYS push to `main` or merge to `main` promptly. Railway only deploys `main`.
 - When working on feature branches, merge to main as soon as work is verified. Do not leave work stranded on feature branches.
 - I (the developer) may not have git CLI access — provide clear instructions for GitHub web UI as an alternative.
