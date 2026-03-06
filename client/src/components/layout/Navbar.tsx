@@ -37,7 +37,7 @@ export function Navbar() {
       }`}
     >
       <nav
-        className={`mx-auto max-w-6xl w-full flex items-center justify-between gap-2 transition-all duration-300 rounded-2xl px-4 md:px-6 py-3 ${
+        className={`mx-auto max-w-7xl w-full flex items-center justify-between gap-2 md:gap-3 lg:gap-4 transition-all duration-300 rounded-2xl px-4 md:px-5 lg:px-6 py-3 ${
           scrolled
             ? "bg-background/80 backdrop-blur-xl border border-border/50 shadow-lg"
             : "bg-transparent"
@@ -45,23 +45,23 @@ export function Navbar() {
         data-testid="navbar"
       >
         <Link href="/" data-testid="link-home-logo">
-          <div className="flex items-center gap-2 cursor-pointer shrink-0">
-            <img src={logoImg} alt={businessInfo.name} className="w-10 h-10 rounded-xl object-cover" />
-            <span className="font-serif font-bold text-lg tracking-tight text-foreground hidden sm:block lg:text-lg md:text-base">
+          <div className="flex items-center gap-2 cursor-pointer shrink-0 min-w-0">
+            <img src={logoImg} alt={businessInfo.name} className="w-9 h-9 md:w-10 md:h-10 rounded-xl object-cover flex-shrink-0" />
+            <span className="font-serif font-bold tracking-tight text-foreground hidden sm:block text-base md:text-lg lg:text-xl truncate">
               {businessInfo.name}
             </span>
           </div>
         </Link>
 
-        <div className="hidden md:flex items-center gap-0.5 lg:gap-1" role="navigation" aria-label="Main navigation">
+        <div className="hidden md:flex items-center gap-0.5 lg:gap-1 xl:gap-2 flex-shrink-0" role="navigation" aria-label="Main navigation">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`px-2 lg:px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`px-2 lg:px-3 xl:px-4 py-2 rounded-lg text-xs lg:text-sm font-medium transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 location === link.href
                   ? "text-primary bg-primary/10"
-                  : "text-foreground/70"
+                  : "text-foreground/70 hover:text-foreground"
               }`}
               aria-current={location === link.href ? "page" : undefined}
               data-testid={`link-nav-${link.label.toLowerCase()}`}
@@ -74,7 +74,7 @@ export function Navbar() {
         <div className="flex items-center gap-1 lg:gap-2 shrink-0">
           <a
             href={`tel:${businessInfo.phone}`}
-            className="hidden lg:flex"
+            className="hidden xl:flex"
             data-testid="link-phone"
           >
             <Button variant="ghost" size="icon" aria-label="Call us">
@@ -86,7 +86,7 @@ export function Navbar() {
             href={`https://maps.google.com/?q=${encodeURIComponent(businessInfo.address + ", " + businessInfo.city)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden lg:flex"
+            className="hidden xl:flex"
             data-testid="link-directions"
           >
             <Button variant="ghost" size="icon" aria-label="Get directions">
