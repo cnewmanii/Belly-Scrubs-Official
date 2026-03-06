@@ -114,6 +114,139 @@ function isPhotoRecent(exifDate: Date | null): { valid: boolean; reason?: string
 
 export function registerBookingRoutes(app: Express) {
 
+  // ─── Today's Availability (public, cached) ─────────────────
+
+  let todayCache: { data: any; expires: number } | null = null;
+
+  app.get("/api/availability/today", async (_req: Request, res: Response) => {
+    try {
+      const now = new Date();
+
+      // Return cache if fresh
+      if (todayCache && todayCache.expires > Date.now()) {
+        return res.json(todayCache.data);
+      }
+
+      // Build today's date string in Eastern Time
+      const etNow = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const todayStr = `${etNow.getFullYear()}-${String(etNow.getMonth() + 1).padStart(2, "0")}-${String(etNow.getDate()).padStart(2, "0")}`;
+      const dayOfWeek = etNow.getDay();
+      const hours = BUSINESS_HOURS[dayOfWeek];
+
+      // Closed today
+      if (!hours) {
+        const result = { date: todayStr, slots: [] };
+        todayCache = { data: result, expires: Date.now() + 5 * 60 * 1000 };
+        return res.json(result);
+      }
+
+      const currentMinutes = etNow.getHours() * 60 + etNow.getMinutes();
+
+      // Get working groomers today
+      const workingGroomers = getWorkingGroomers(todayStr);
+      if (workingGroomers.length === 0) {
+        const result = { date: todayStr, slots: [] };
+        todayCache = { data: result, expires: Date.now() + 5 * 60 * 1000 };
+        return res.json(result);
+      }
+
+      // Fetch Square bookings
+      let occupiedSlots: OccupiedSlot[] = [];
+      try {
+        occupiedSlots = await getSquareOccupiedSlots(todayStr);
+      } catch (err: any) {
+        console.error(`TODAY AVAILABILITY: Square check failed:`, err.message);
+      }
+
+      // For each working groomer, build their booked timeline and find gaps
+      const availableSlots: Array<{ time: string; label: string; services: string }> = [];
+      const seenTimes = new Set<string>();
+
+      for (const groomer of workingGroomers) {
+        // Find this groomer's schedule for today
+        const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const dayName = DAY_NAMES[dayOfWeek];
+        const scheduleDay = groomer.schedule.find(s => s.day === dayName);
+        if (!scheduleDay) continue;
+
+        const shiftStart = scheduleDay.startHour * 60;
+        const shiftEnd = scheduleDay.endHour * 60;
+
+        // Collect this groomer's booked intervals
+        const bookedIntervals: Array<{ start: number; end: number }> = [];
+        for (const occ of occupiedSlots) {
+          // Only count bookings assigned to this groomer (or unassigned ones conservatively)
+          if (occ.teamMemberId && groomer.squareTeamMemberId && occ.teamMemberId !== groomer.squareTeamMemberId) {
+            continue;
+          }
+          const [h, m] = occ.time.split(":").map(Number);
+          const slotStart = h * 60 + m;
+          // Fixed slots are 2 hours each
+          bookedIntervals.push({ start: slotStart, end: slotStart + 120 });
+        }
+
+        // Sort booked intervals by start time
+        bookedIntervals.sort((a, b) => a.start - b.start);
+
+        // Find gaps in the groomer's day
+        const gaps: Array<{ start: number; end: number }> = [];
+        let cursor = shiftStart;
+        for (const interval of bookedIntervals) {
+          if (interval.start > cursor) {
+            gaps.push({ start: cursor, end: interval.start });
+          }
+          cursor = Math.max(cursor, interval.end);
+        }
+        if (cursor < shiftEnd) {
+          gaps.push({ start: cursor, end: shiftEnd });
+        }
+
+        // Convert gaps to available slots (rounded to 30-min marks, at least 60 min)
+        for (const gap of gaps) {
+          const gapDuration = gap.end - gap.start;
+          if (gapDuration < 60) continue; // Too short for any service
+
+          // Round start up to next 30-min mark
+          const roundedStart = Math.ceil(gap.start / 30) * 30;
+          if (roundedStart >= gap.end - 60) continue; // Not enough time after rounding
+
+          const remainingDuration = gap.end - roundedStart;
+
+          // Skip slots in the past (must be at least 30 min from now)
+          if (roundedStart <= currentMinutes + 30) continue;
+
+          const slotHour = Math.floor(roundedStart / 60);
+          const slotMin = roundedStart % 60;
+          const timeStr = `${slotHour.toString().padStart(2, "0")}:${slotMin.toString().padStart(2, "0")}`;
+
+          if (seenTimes.has(timeStr)) continue;
+          seenTimes.add(timeStr);
+
+          // Format display time
+          const displayHour = slotHour > 12 ? slotHour - 12 : slotHour === 0 ? 12 : slotHour;
+          const ampm = slotHour >= 12 ? "PM" : "AM";
+          const displayMin = slotMin === 0 ? "" : `:${slotMin.toString().padStart(2, "0")}`;
+          const label = `${displayHour}${displayMin} ${ampm}`;
+
+          // 60 min = bath only, 90+ min = bath or groom
+          const services = remainingDuration >= 90 ? "Bath & Groom" : "Bath";
+
+          availableSlots.push({ time: timeStr, label, services });
+        }
+      }
+
+      // Sort by time
+      availableSlots.sort((a, b) => a.time.localeCompare(b.time));
+
+      const result = { date: todayStr, slots: availableSlots };
+      todayCache = { data: result, expires: Date.now() + 5 * 60 * 1000 };
+      return res.json(result);
+    } catch (err: any) {
+      console.error("TODAY AVAILABILITY error:", err.message);
+      return res.json({ date: "", slots: [] });
+    }
+  });
+
   // ─── Availability ───────────────────────────────────────────
 
   app.get("/api/availability", async (req: Request, res: Response) => {

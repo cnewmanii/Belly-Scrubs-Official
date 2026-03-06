@@ -69,6 +69,15 @@
 - Database pool has connectionTimeoutMillis: 10000 to prevent silent hangs
 - Console.log diagnostics at every startup stage for Railway deploy log visibility
 
+## Today's Availability API
+- GET /api/availability/today — public endpoint, returns same-day open slots
+- Checks each working groomer's schedule, subtracts Square bookings, finds gaps
+- Gap >= 60 min = "Bath", gap >= 90 min = "Bath & Groom"
+- Slots rounded to 30-min marks, must be at least 30 min in the future
+- Response cached for 5 minutes to avoid hammering Square
+- Returns empty array if Square not configured or shop is closed
+- Frontend shows slots as call-to-book pills (same-day = phone only)
+
 ## Booking Flow
 - 6-step wizard: Service → Add-ons → Date/Time → Info → Pet Photo → Confirm
 - 24-hour advance booking requirement (server + client enforced)
