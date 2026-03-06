@@ -36,18 +36,18 @@ import {
 // Before/After grooming photos
 import before1 from "@assets/Before_Poodle.jpeg";
 import after1 from "@assets/After_Poodle.jpeg";
-import before2 from "@assets/Before_Moodle.JPEG";
-import after2 from "@assets/After_Moodle.JPEG";
+import before2 from "@assets/Before_Moodle.jpg";
+import after2 from "@assets/After_Moodle.jpg";
 import before3 from "@assets/Before_Retriever.jpeg";
-import after3 from "@assets/After_Retriever.JPEG";
+import after3 from "@assets/After_Retriever.jpg";
 import before4 from "@assets/Before_Yorki.jpeg";
 import after4 from "@assets/After_Yorki.jpeg";
 
 const groomingPairs = [
-  { before: before1, after: after1, name: "Poodle" },
-  { before: before2, after: after2, name: "Moodle" },
-  { before: before3, after: after3, name: "Golden Retriever" },
-  { before: before4, after: after4, name: "Yorkie" },
+  { before: before1, after: after1, name: "Poodle", beforePos: "center center", afterPos: "center center" },
+  { before: before2, after: after2, name: "Moodle", beforePos: "center top", afterPos: "center top" },
+  { before: before3, after: after3, name: "Golden Retriever", beforePos: "center center", afterPos: "center top" },
+  { before: before4, after: after4, name: "Yorkie", beforePos: "center top", afterPos: "center top" },
 ];
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -459,6 +459,8 @@ function BeforeAfterSection() {
                   afterSrc={pair.after}
                   beforeAlt={`${pair.name} before grooming`}
                   afterAlt={`${pair.name} after grooming`}
+                  beforePosition={pair.beforePos}
+                  afterPosition={pair.afterPos}
                 />
                 <p className="text-sm font-medium text-foreground text-center mt-3">{pair.name}</p>
               </Card>

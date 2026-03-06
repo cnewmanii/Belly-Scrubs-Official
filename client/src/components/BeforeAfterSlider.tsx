@@ -5,9 +5,11 @@ interface BeforeAfterSliderProps {
   afterSrc: string;
   beforeAlt: string;
   afterAlt: string;
+  beforePosition?: string;
+  afterPosition?: string;
 }
 
-export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeAlt, afterAlt }: BeforeAfterSliderProps) {
+export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeAlt, afterAlt, beforePosition = "center center", afterPosition = "center center" }: BeforeAfterSliderProps) {
   const [position, setPosition] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -37,7 +39,8 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeAlt, afterAlt }: 
   return (
     <div
       ref={containerRef}
-      className="relative w-full aspect-square rounded-xl overflow-hidden cursor-col-resize select-none touch-none"
+      className="relative w-full rounded-xl overflow-hidden cursor-col-resize select-none touch-none"
+      style={{ aspectRatio: "3 / 4" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -47,6 +50,7 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeAlt, afterAlt }: 
         src={afterSrc}
         alt={afterAlt}
         className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: afterPosition }}
         draggable={false}
       />
 
@@ -59,15 +63,15 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeAlt, afterAlt }: 
           src={beforeSrc}
           alt={beforeAlt}
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ width: containerRef.current ? `${containerRef.current.offsetWidth}px` : "100vw", maxWidth: "none" }}
+          style={{ width: containerRef.current ? `${containerRef.current.offsetWidth}px` : "100vw", maxWidth: "none", objectPosition: beforePosition }}
           draggable={false}
         />
       </div>
 
       {/* Slider line */}
       <div
-        className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg z-10"
-        style={{ left: `${position}%`, transform: "translateX(-50%)" }}
+        className="absolute top-0 bottom-0 w-1 bg-white z-10"
+        style={{ left: `${position}%`, transform: "translateX(-50%)", boxShadow: "0 0 6px rgba(0,0,0,0.5), 0 0 2px rgba(0,0,0,0.3)" }}
       >
         {/* Handle */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center">
