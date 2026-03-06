@@ -13,6 +13,7 @@ import PetCalendarCreate from "@/pages/pet-calendar/Create";
 import PetCalendarView from "@/pages/pet-calendar/View";
 import PetCalendarSuccess from "@/pages/pet-calendar/Success";
 import BookingSuccess from "@/pages/BookingSuccess";
+import Admin from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 
 function ScrollToTop() {
@@ -36,6 +37,7 @@ function Router() {
         <Route path="/pet-calendar/create" component={PetCalendarCreate} />
         <Route path="/pet-calendar/success" component={PetCalendarSuccess} />
         <Route path="/pet-calendar/:id" component={PetCalendarView} />
+        <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>
     </>
