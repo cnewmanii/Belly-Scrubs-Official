@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import multer from "multer";
+import sharp from "sharp";
 import { storage } from "../storage";
 
 const upload = multer({
@@ -36,9 +37,22 @@ export function registerAdminRoutes(app: Express) {
       if (!req.file) {
         return res.status(400).json({ error: "No photo file provided" });
       }
-      const mime = req.file.mimetype || "image/jpeg";
-      const base64 = req.file.buffer.toString("base64");
-      const dataUrl = `data:${mime};base64,${base64}`;
+
+      // Get original dimensions for logging
+      const originalMeta = await sharp(req.file.buffer).metadata();
+      console.log(`HERO UPLOAD: Original ${originalMeta.width}x${originalMeta.height} (${(req.file.buffer.length / 1024).toFixed(0)}KB)`);
+
+      // Resize to max 1920x1080, convert to JPEG at 85% quality
+      const resizedBuffer = await sharp(req.file.buffer)
+        .resize(1920, 1080, { fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+
+      const resizedMeta = await sharp(resizedBuffer).metadata();
+      console.log(`HERO UPLOAD: Resized ${resizedMeta.width}x${resizedMeta.height} (${(resizedBuffer.length / 1024).toFixed(0)}KB)`);
+
+      const base64 = resizedBuffer.toString("base64");
+      const dataUrl = `data:image/jpeg;base64,${base64}`;
       const caption = (req.body.caption as string) || undefined;
       const photo = await storage.createHeroPhoto(dataUrl, caption);
       res.json({ id: photo.id, caption: photo.caption, createdAt: photo.createdAt });
