@@ -16,6 +16,7 @@ import {
   faqs,
   businessInfo,
 } from "@/data/siteData";
+import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 import {
   Scissors,
   Droplets,
@@ -31,6 +32,23 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+
+// Before/After grooming photos
+import before1 from "@assets/IMG_0237.jpeg";
+import after1 from "@assets/IMG_0243.jpeg";
+import before2 from "@assets/IMG_0503.jpeg";
+import after2 from "@assets/IMG_0507.jpeg";
+import before3 from "@assets/IMG_4217.jpeg";
+import after3 from "@assets/IMG_4220_heic.JPEG";
+import before4 from "@assets/IMG_8069_heic.JPEG";
+import after4 from "@assets/IMG_8074_heic.JPEG";
+
+const groomingPairs = [
+  { before: before1, after: after1, name: "Brown Poodle" },
+  { before: before2, after: after2, name: "Curly Pup" },
+  { before: before3, after: after3, name: "Golden Retriever" },
+  { before: before4, after: after4, name: "Yorkie" },
+];
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -407,41 +425,43 @@ function TestimonialsSection() {
   );
 }
 
-function GalleryStrip() {
-  const placeholders = [
-    { label: "Before", gradient: "from-amber-200 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/20" },
-    { label: "After", gradient: "from-[#7ab8d0] to-[#5ea3b8] dark:from-[#2a5060] dark:to-[#1f4050]" },
-    { label: "Before", gradient: "from-orange-200 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/20" },
-    { label: "After", gradient: "from-[#7ab8d0] to-[#5ea3b8] dark:from-[#2a5060] dark:to-[#1f4050]" },
-    { label: "Before", gradient: "from-yellow-200 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/20" },
-    { label: "After", gradient: "from-[#7ab8d0] to-[#5ea3b8] dark:from-[#2a5060] dark:to-[#1f4050]" },
-  ];
-
+function BeforeAfterSection() {
   return (
     <section className="px-6 py-16" data-testid="section-gallery">
-      <div className="max-w-6xl mx-auto">
-        <motion.h2
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          transition={{ duration: 0.5 }}
-          className="text-3xl sm:text-4xl font-bold text-foreground text-center mb-10"
-        >
-          Fresh & Clean Results
-        </motion.h2>
+      <div className="max-w-5xl mx-auto">
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
+          viewport={{ once: true, margin: "-50px" }}
           variants={stagger}
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3"
+          className="text-center mb-12"
         >
-          {placeholders.map((item, i) => (
-            <motion.div key={i} variants={fadeUp} transition={{ duration: 0.3 }}>
-              <div className={`aspect-square rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center`} data-testid={`img-gallery-${i}`}>
-                <span className="text-xs font-medium text-foreground/60">{item.label}</span>
-              </div>
+          <motion.h2 variants={fadeUp} transition={{ duration: 0.5 }} className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+            The Belly scRubs Difference
+          </motion.h2>
+          <motion.p variants={fadeUp} transition={{ duration: 0.5, delay: 0.1 }} className="text-muted-foreground max-w-lg mx-auto">
+            Drag the slider to see the transformation. Every pup leaves looking and feeling their best.
+          </motion.p>
+        </motion.div>
+
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={stagger}
+          className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+        >
+          {groomingPairs.map((pair, i) => (
+            <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }}>
+              <Card className="p-3 hover-elevate transition-all">
+                <BeforeAfterSlider
+                  beforeSrc={pair.before}
+                  afterSrc={pair.after}
+                  beforeAlt={`${pair.name} before grooming`}
+                  afterAlt={`${pair.name} after grooming`}
+                />
+                <p className="text-sm font-medium text-foreground text-center mt-3">{pair.name}</p>
+              </Card>
             </motion.div>
           ))}
         </motion.div>
@@ -584,7 +604,7 @@ export default function Home() {
       <AvailabilityTeaser />
       <ServicesSection />
       <TestimonialsSection />
-      <GalleryStrip />
+      <BeforeAfterSection />
       <LocationSection />
       <FAQSection />
       <CTABanner />
