@@ -114,15 +114,24 @@ function HeroSection() {
                 className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
                 style={{ opacity: i === currentIdx ? 1 : 0 }}
               >
+                {/* Blurred background layer — fills entire hero, no gaps */}
+                <img
+                  src={photo.imageData}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{ filter: "blur(20px) brightness(0.7)", transform: "scale(1.1)" }}
+                />
+                {/* Foreground layer — full photo, no cropping */}
                 <img
                   src={photo.imageData}
                   alt={photo.caption || "Hero background"}
-                  className="w-full h-full object-cover object-top"
+                  className="absolute inset-0 w-full h-full object-contain"
                 />
               </div>
             ))}
             {/* Dark overlay for text readability */}
-            <div className="absolute inset-0 bg-black/50" />
+            <div className="absolute inset-0 bg-black/40" />
           </>
         ) : (
           <>
