@@ -12,7 +12,7 @@ import { teamMembers, values, faqs, policies } from "@/data/siteData";
 import teaganPhoto from "@assets/image_1772080507657.png";
 import serenaPhoto from "@assets/image_1772080571987.png";
 import lindsayPhoto from "@assets/614480787_1533437184993625_3713082189265715229_n_1772080700926.jpg";
-import gingerPhoto from "@assets/IMG_8441.JPG";
+import gingerPhoto from "@assets/Ginger_Profile.JPG";
 
 const teamPhotos: Record<string, string> = {
   Teagan: teaganPhoto,
