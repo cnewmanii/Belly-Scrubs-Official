@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 interface BeforeAfterSliderProps {
   beforeSrc: string;
@@ -11,14 +11,33 @@ interface BeforeAfterSliderProps {
 
 export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeAlt, afterAlt, beforePosition = "center center", afterPosition = "center center" }: BeforeAfterSliderProps) {
   const [showAfter, setShowAfter] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  const handleTouchStart = useCallback(() => {
+    setIsTouchDevice(true);
+    setShowAfter(prev => !prev);
+  }, []);
+
+  const handleMouseEnter = useCallback(() => {
+    if (!isTouchDevice) setShowAfter(true);
+  }, [isTouchDevice]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!isTouchDevice) setShowAfter(false);
+  }, [isTouchDevice]);
+
+  const handleClick = useCallback(() => {
+    if (isTouchDevice) setShowAfter(prev => !prev);
+  }, [isTouchDevice]);
 
   return (
     <div
-      className="relative w-full rounded-xl overflow-hidden select-none group"
+      className="relative w-full rounded-xl overflow-hidden select-none cursor-pointer"
       style={{ aspectRatio: "3 / 4" }}
-      onMouseEnter={() => setShowAfter(true)}
-      onMouseLeave={() => setShowAfter(false)}
-      onTouchStart={() => setShowAfter(prev => !prev)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onClick={handleClick}
     >
       {/* Before image (base layer) */}
       <img

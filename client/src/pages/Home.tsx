@@ -510,8 +510,8 @@ function BeforeAfterSection() {
                   afterPosition={pair.afterPos}
                 />
                 <p className="text-sm font-medium text-foreground text-center mt-3">{pair.name}</p>
-                <p className="text-xs text-muted-foreground text-center mt-1 sm:hidden">Tap to see after</p>
-                <p className="text-xs text-muted-foreground text-center mt-1 hidden sm:block">Hover to see after</p>
+                <p className="text-xs text-muted-foreground text-center mt-1 sm:hidden">Tap to reveal</p>
+                <p className="text-xs text-muted-foreground text-center mt-1 hidden sm:block">Hover to reveal</p>
               </Card>
             </motion.div>
           ))}
@@ -654,8 +654,8 @@ export default function Home() {
       <HeroSection />
       <AvailabilityTeaser />
       <ServicesSection />
-      <TestimonialsSection />
       <BeforeAfterSection />
+      <TestimonialsSection />
       <LocationSection />
       <FAQSection />
       <CTABanner />
