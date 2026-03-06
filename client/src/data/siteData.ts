@@ -166,6 +166,13 @@ export const teamMembers = [
     initials: "L",
     photo: true,
   },
+  {
+    name: "Ginger",
+    role: "Groomer & Cat Specialist",
+    bio: "Ginger brings over 12 years of combined veterinary and grooming experience to Belly scRubs while pursuing her veterinary technician degree. Specializing in cat grooming and small animals, she handles even the most particular feline clients with confidence and care. When she's not at the shop, Ginger is at home with her three dogs — Little, Chewie, and Penelope.",
+    initials: "G",
+    photo: true,
+  },
 ];
 
 export const businessInfo = {
