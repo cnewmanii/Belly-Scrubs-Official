@@ -12,11 +12,13 @@ import { teamMembers, values, faqs, policies } from "@/data/siteData";
 import teaganPhoto from "@assets/image_1772080507657.png";
 import serenaPhoto from "@assets/image_1772080571987.png";
 import lindsayPhoto from "@assets/614480787_1533437184993625_3713082189265715229_n_1772080700926.jpg";
+import gingerPhoto from "@assets/IMG_8441.JPG";
 
 const teamPhotos: Record<string, string> = {
   Teagan: teaganPhoto,
   Serena: serenaPhoto,
   Lindsay: lindsayPhoto,
+  Ginger: gingerPhoto,
 };
 import {
   Heart,
@@ -167,7 +169,7 @@ function TeamSection() {
           whileInView="visible"
           viewport={{ once: true }}
           variants={stagger}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
         >
           {teamMembers.map((member) => (
             <motion.div key={member.name} variants={fadeUp} transition={{ duration: 0.4 }}>
