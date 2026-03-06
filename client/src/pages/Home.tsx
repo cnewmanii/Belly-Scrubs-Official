@@ -39,9 +39,9 @@ import after1 from "@assets/IMG_0243.jpeg";
 import before2 from "@assets/IMG_0503.jpeg";
 import after2 from "@assets/IMG_0507.jpeg";
 import before3 from "@assets/IMG_4217.jpeg";
-import after3 from "@assets/IMG_4220_heic.JPEG";
-import before4 from "@assets/IMG_8069_heic.JPEG";
-import after4 from "@assets/IMG_8074_heic.JPEG";
+import after3 from "@assets/IMG_4220.heic.JPEG";
+import before4 from "@assets/IMG_8069.heic.JPEG";
+import after4 from "@assets/IMG_8074.heic.JPEG";
 
 const groomingPairs = [
   { before: before1, after: after1, name: "Brown Poodle" },
