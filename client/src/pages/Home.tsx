@@ -212,7 +212,14 @@ function HeroSection() {
 }
 
 function AvailabilityTeaser() {
-  const slots = ["9:00 AM", "10:30 AM", "1:00 PM", "3:30 PM"];
+  const { data, isLoading, isError } = useQuery<{ date: string; slots: Array<{ time: string; label: string; services: string }> }>({
+    queryKey: ["/api/availability/today"],
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  const slots = data?.slots || [];
+  const hasSlots = slots.length > 0;
+  const showFallback = isError || (!isLoading && !data);
 
   return (
     <section className="px-6 pb-16" data-testid="section-availability">
@@ -233,27 +240,67 @@ function AvailabilityTeaser() {
                   Today's Availability
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground">Open slots for quick booking</p>
+              <p className="text-sm text-muted-foreground">
+                {hasSlots ? "Same-day openings — call to reserve" : "Open slots for today"}
+              </p>
             </div>
-            <Link href="/book">
-              <Button variant="outline" size="sm" className="gap-1.5" data-testid="button-view-calendar">
-                <Clock className="w-3.5 h-3.5" />
-                Book Now
-              </Button>
-            </Link>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {slots.map((time) => (
-              <Link key={time} href="/book">
-                <span
-                  className="inline-flex items-center px-4 py-2 rounded-lg bg-background border border-border text-sm font-medium cursor-pointer hover-elevate transition-all"
-                  data-testid={`button-slot-${time.replace(/\s/g, "-")}`}
-                >
-                  {time}
-                </span>
+            {hasSlots ? (
+              <a href={`tel:${businessInfo.phone.replace(/[^+\d]/g, "")}`}>
+                <Button variant="outline" size="sm" className="gap-1.5" data-testid="button-call-to-book">
+                  <Phone className="w-3.5 h-3.5" />
+                  Call to Book
+                </Button>
+              </a>
+            ) : (
+              <Link href="/book">
+                <Button variant="outline" size="sm" className="gap-1.5" data-testid="button-view-calendar">
+                  <Calendar className="w-3.5 h-3.5" />
+                  Book Online
+                </Button>
               </Link>
-            ))}
+            )}
           </div>
+
+          {isLoading && (
+            <div className="flex flex-wrap gap-2">
+              {[1, 2, 3].map(i => (
+                <span key={i} className="inline-flex items-center px-4 py-2 rounded-lg bg-background/50 border border-border text-sm text-muted-foreground animate-pulse w-28 h-10" />
+              ))}
+            </div>
+          )}
+
+          {showFallback && (
+            <p className="text-sm text-muted-foreground">
+              Call us at <a href={`tel:${businessInfo.phone.replace(/[^+\d]/g, "")}`} className="font-medium text-primary underline">{businessInfo.phone}</a> for today's availability.
+            </p>
+          )}
+
+          {!isLoading && hasSlots && (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {slots.map((slot) => (
+                  <a key={slot.time} href={`tel:${businessInfo.phone.replace(/[^+\d]/g, "")}`}>
+                    <span
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-background border border-border text-sm font-medium cursor-pointer hover-elevate transition-all"
+                      data-testid={`button-slot-${slot.label.replace(/\s/g, "-")}`}
+                    >
+                      {slot.label}
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{slot.services}</Badge>
+                    </span>
+                  </a>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Same-day appointments are available by phone only. Call us to reserve your spot!
+              </p>
+            </>
+          )}
+
+          {!isLoading && !showFallback && !hasSlots && (
+            <div className="text-sm text-muted-foreground">
+              <p>Fully booked today! <Link href="/book" className="font-medium text-primary underline">Book online</Link> for tomorrow and beyond.</p>
+            </div>
+          )}
         </Card>
       </motion.div>
     </section>
