@@ -222,7 +222,7 @@ function AvailabilityTeaser() {
   const showFallback = isError || (!isLoading && !data);
 
   return (
-    <section className="px-6 pb-16" data-testid="section-availability">
+    <section className="px-6 pt-10 pb-16" data-testid="section-availability">
       <motion.div
         initial="hidden"
         whileInView="visible"
@@ -510,6 +510,8 @@ function BeforeAfterSection() {
                   afterPosition={pair.afterPos}
                 />
                 <p className="text-sm font-medium text-foreground text-center mt-3">{pair.name}</p>
+                <p className="text-xs text-muted-foreground text-center mt-1 sm:hidden">Tap to see after</p>
+                <p className="text-xs text-muted-foreground text-center mt-1 hidden sm:block">Hover to see after</p>
               </Card>
             </motion.div>
           ))}
