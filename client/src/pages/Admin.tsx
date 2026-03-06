@@ -11,6 +11,10 @@ interface HeroPhotoMeta {
   createdAt: string;
 }
 
+interface HeroPhotoFull extends HeroPhotoMeta {
+  imageData: string;
+}
+
 export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -21,6 +25,14 @@ export default function Admin() {
   const { data: photos = [], isLoading } = useQuery<HeroPhotoMeta[]>({
     queryKey: ["/api/admin/hero-photos"],
   });
+
+  // Fetch full photo data for thumbnails
+  const { data: fullPhotos = [] } = useQuery<HeroPhotoFull[]>({
+    queryKey: ["/api/hero-photos"],
+  });
+
+  // Build a map of id -> imageData for quick lookup
+  const thumbnailMap = new Map(fullPhotos.map((p) => [p.id, p.imageData]));
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -139,8 +151,16 @@ export default function Admin() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {photos.map((photo) => (
             <Card key={photo.id} className="p-4">
-              <div className="aspect-video rounded-lg bg-muted flex items-center justify-center mb-3">
-                <span className="text-xs text-muted-foreground">Photo #{photo.id}</span>
+              <div className="aspect-video rounded-lg bg-muted flex items-center justify-center mb-3 overflow-hidden">
+                {thumbnailMap.has(photo.id) ? (
+                  <img
+                    src={thumbnailMap.get(photo.id)}
+                    alt={photo.caption || `Hero photo #${photo.id}`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xs text-muted-foreground">Photo #{photo.id}</span>
+                )}
               </div>
               {photo.caption && (
                 <p className="text-sm text-foreground mb-2 truncate">{photo.caption}</p>

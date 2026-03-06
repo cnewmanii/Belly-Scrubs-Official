@@ -32,12 +32,12 @@ export function Navbar() {
       transition={{ type: "spring", stiffness: 200, damping: 30 }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "py-2 px-3 md:px-6"
-          : "py-3 px-3 md:px-6"
+          ? "py-2 px-4 md:px-6 lg:px-8"
+          : "py-3 md:py-4 px-4 md:px-6 lg:px-8"
       }`}
     >
       <nav
-        className={`mx-auto max-w-7xl w-full flex items-center justify-between gap-2 md:gap-3 lg:gap-4 transition-all duration-300 rounded-2xl px-4 md:px-5 lg:px-6 py-3 ${
+        className={`mx-auto max-w-7xl w-full flex items-center justify-between gap-3 md:gap-4 lg:gap-6 transition-all duration-300 rounded-2xl px-4 md:px-6 lg:px-8 py-3 md:py-4 ${
           scrolled
             ? "bg-background/80 backdrop-blur-xl border border-border/50 shadow-lg"
             : "bg-transparent"
@@ -46,22 +46,22 @@ export function Navbar() {
       >
         <Link href="/" data-testid="link-home-logo">
           <div className="flex items-center gap-2 cursor-pointer shrink-0 min-w-0">
-            <img src={logoImg} alt={businessInfo.name} className="w-9 h-9 md:w-10 md:h-10 rounded-xl object-cover flex-shrink-0" />
-            <span className="font-serif font-bold tracking-tight text-foreground hidden sm:block text-base md:text-lg lg:text-xl truncate">
+            <img src={logoImg} alt={businessInfo.name} className="w-10 h-10 md:w-11 md:h-11 rounded-xl object-cover flex-shrink-0" />
+            <span className="font-serif font-bold tracking-tight text-foreground hidden sm:block text-xl md:text-2xl truncate">
               {businessInfo.name}
             </span>
           </div>
         </Link>
 
-        <div className="hidden md:flex items-center gap-0.5 lg:gap-1 xl:gap-2 flex-shrink-0" role="navigation" aria-label="Main navigation">
+        <div className="hidden md:flex items-center gap-1 lg:gap-2 xl:gap-3 flex-shrink-0" role="navigation" aria-label="Main navigation">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`px-2 lg:px-3 xl:px-4 py-2 rounded-lg text-xs lg:text-sm font-medium transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`px-3 lg:px-4 xl:px-5 py-2 rounded-full text-base md:text-lg font-medium transition-colors duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 location === link.href
                   ? "text-primary bg-primary/10"
-                  : "text-foreground/70 hover:text-foreground"
+                  : "text-foreground/70 hover:text-foreground hover:bg-foreground/10"
               }`}
               aria-current={location === link.href ? "page" : undefined}
               data-testid={`link-nav-${link.label.toLowerCase()}`}
@@ -71,13 +71,13 @@ export function Navbar() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1 lg:gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 lg:gap-2 shrink-0">
           <a
             href={`tel:${businessInfo.phone}`}
-            className="hidden xl:flex"
+            className="hidden xl:flex rounded-full transition-colors duration-200 hover:bg-foreground/10"
             data-testid="link-phone"
           >
-            <Button variant="ghost" size="icon" aria-label="Call us">
+            <Button variant="ghost" size="icon" className="rounded-full" aria-label="Call us">
               <Phone className="w-4 h-4" />
             </Button>
           </a>
@@ -86,17 +86,17 @@ export function Navbar() {
             href={`https://maps.google.com/?q=${encodeURIComponent(businessInfo.address + ", " + businessInfo.city)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden xl:flex"
+            className="hidden xl:flex rounded-full transition-colors duration-200 hover:bg-foreground/10"
             data-testid="link-directions"
           >
-            <Button variant="ghost" size="icon" aria-label="Get directions">
+            <Button variant="ghost" size="icon" className="rounded-full" aria-label="Get directions">
               <MapPin className="w-4 h-4" />
             </Button>
           </a>
 
           <Link href="/book">
-            <Button size="sm" className="hidden md:flex gap-1.5" data-testid="button-book-now-nav">
-              <Calendar className="w-3.5 h-3.5" />
+            <Button className="hidden md:flex gap-2 px-5 py-2.5 text-base" data-testid="button-book-now-nav">
+              <Calendar className="w-4 h-4" />
               <span className="hidden lg:inline">Book Now</span>
               <span className="lg:hidden">Book</span>
             </Button>
@@ -114,10 +114,10 @@ export function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       location === link.href
                         ? "text-primary bg-primary/10"
-                        : "text-foreground/70"
+                        : "text-foreground/70 hover:text-foreground hover:bg-foreground/10"
                     }`}
                     aria-current={location === link.href ? "page" : undefined}
                     onClick={() => setMobileOpen(false)}
