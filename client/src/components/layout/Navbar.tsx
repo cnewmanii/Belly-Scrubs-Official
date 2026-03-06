@@ -83,7 +83,7 @@ export function Navbar() {
           </a>
 
           <a
-            href={`https://maps.google.com/?q=${encodeURIComponent(businessInfo.address + ", " + businessInfo.city)}`}
+            href="https://www.google.com/maps/place/Belly+Scrubs/@38.4492417,-81.9412796,20.79z/data=!4m6!3m5!1s0x8848b41aa0fdfedb:0xf16244a8ad67948d!8m2!3d38.4494!4d-81.94132!16s%2Fg%2F1tftxn7r?entry=ttu&g_ep=EgoyMDI2MDMwNC4xIKXMDSoASAFQAw%3D%3D"
             target="_blank"
             rel="noopener noreferrer"
             className="hidden xl:flex rounded-full transition-colors duration-200 hover:bg-foreground/10"
@@ -138,7 +138,7 @@ export function Navbar() {
                     <Phone className="w-4 h-4" /> {businessInfo.phone}
                   </a>
                   <a
-                    href={`https://maps.google.com/?q=${encodeURIComponent(businessInfo.address)}`}
+                    href="https://www.google.com/maps/place/Belly+Scrubs/@38.4492417,-81.9412796,20.79z/data=!4m6!3m5!1s0x8848b41aa0fdfedb:0xf16244a8ad67948d!8m2!3d38.4494!4d-81.94132!16s%2Fg%2F1tftxn7r?entry=ttu&g_ep=EgoyMDI2MDMwNC4xIKXMDSoASAFQAw%3D%3D"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2"

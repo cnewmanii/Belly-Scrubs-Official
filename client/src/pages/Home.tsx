@@ -213,7 +213,7 @@ function HeroSection() {
             <span className={`font-medium ${hasPhotos ? "text-white" : "text-foreground"}`}>5.0</span>
           </div>
           <div className={`w-px h-4 ${hasPhotos ? "bg-white/30" : "bg-border"}`} />
-          <span>500+ happy pups</span>
+          <span>1,000+ happy pups</span>
         </motion.div>
       </motion.div>
     </section>

@@ -1,3 +1,4 @@
+import { useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -140,8 +141,21 @@ function ValuesSection() {
 }
 
 function TeamSection() {
+  const [expandedMember, setExpandedMember] = useState<string | null>(null);
+  const isTouchRef = useRef(false);
+
+  const handleTouchStart = useCallback(() => {
+    isTouchRef.current = true;
+  }, []);
+
+  const handleClick = useCallback((name: string) => {
+    if (isTouchRef.current) {
+      setExpandedMember((prev) => (prev === name ? null : name));
+    }
+  }, []);
+
   return (
-    <section className="px-6 py-20" data-testid="section-team">
+    <section className="px-6 py-20" data-testid="section-team" onTouchStart={handleTouchStart}>
       <div className="max-w-6xl mx-auto">
         <motion.h2
           initial="hidden"
@@ -171,30 +185,38 @@ function TeamSection() {
           variants={stagger}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
         >
-          {teamMembers.map((member) => (
-            <motion.div key={member.name} variants={fadeUp} transition={{ duration: 0.4 }}>
-              <Card
-                className="overflow-hidden h-full group hover-elevate"
-                data-testid={`card-team-${member.initials}`}
-              >
-                {teamPhotos[member.name] && (
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={teamPhotos[member.name]}
-                      alt={`${member.name} with her pets`}
-                      className="w-full h-56 object-cover object-center transition-all duration-500 group-hover:h-80 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          {teamMembers.map((member) => {
+            const isExpanded = expandedMember === member.name;
+            return (
+              <motion.div key={member.name} variants={fadeUp} transition={{ duration: 0.4 }}>
+                <Card
+                  className="overflow-hidden h-full group hover-elevate cursor-pointer"
+                  data-testid={`card-team-${member.initials}`}
+                  onClick={() => handleClick(member.name)}
+                >
+                  {teamPhotos[member.name] && (
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={teamPhotos[member.name]}
+                        alt={`${member.name} with her pets`}
+                        className={`w-full object-cover object-center transition-all duration-500 ${
+                          isExpanded ? "h-80 scale-105" : "h-56 group-hover:h-80 group-hover:scale-105"
+                        }`}
+                      />
+                      <div className={`absolute inset-0 bg-gradient-to-t from-black/30 to-transparent transition-opacity duration-300 ${
+                        isExpanded ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      }`} />
+                    </div>
+                  )}
+                  <div className="p-5">
+                    <h3 className="font-semibold text-lg text-foreground mb-0.5">{member.name}</h3>
+                    <p className="text-xs text-primary font-medium mb-3">{member.role}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{member.bio}</p>
                   </div>
-                )}
-                <div className="p-5">
-                  <h3 className="font-semibold text-lg text-foreground mb-0.5">{member.name}</h3>
-                  <p className="text-xs text-primary font-medium mb-3">{member.role}</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{member.bio}</p>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
+                </Card>
+              </motion.div>
+            );
+          })}
         </motion.div>
       </div>
     </section>

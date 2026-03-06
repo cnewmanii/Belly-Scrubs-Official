@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Upload, Dog, Cat, Sparkles, ChevronRight, Loader2, PawPrint } from "lucide-react";
+import { Upload, Dog, Cat, ChevronRight, Loader2, PawPrint, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,7 +25,7 @@ const MONTHS = [
 ];
 
 const GENERATING_MESSAGES = [
-  "Warming up the AI brushes...",
+  "Warming up the brushes...",
   "Studying your pet's adorable features...",
   "Painting holiday scenes...",
   "Adding festive details...",
@@ -238,15 +238,11 @@ export default function PetCalendarCreate() {
       <section className="px-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
-            <Badge variant="secondary" className="mb-3 text-xs">
-              <Sparkles className="w-3 h-3 mr-1" />
-              AI-Powered
-            </Badge>
             <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
               Create Your Pet's <span className="text-primary">Holiday Calendar</span>
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Upload a photo and our AI will generate 12 unique holiday-themed images
+              Upload a photo and we'll generate 12 unique holiday-themed images
               of your pet — one for each month of the year.
             </p>
           </div>
@@ -411,7 +407,7 @@ export default function PetCalendarCreate() {
                 <div className="space-y-4">
                   {[
                     { step: "1", title: "Upload Your Photo", desc: "Share a clear photo of your dog or cat." },
-                    { step: "2", title: "AI Creates Images", desc: "Our AI generates 12 unique holiday images of your pet." },
+                    { step: "2", title: "We Create Images", desc: "We generate 12 unique holiday images of your pet." },
                     { step: "3", title: "Purchase & Download", desc: "Love it? Purchase for $29.99 and download print-ready files." },
                   ].map((item) => (
                     <div key={item.step} className="flex gap-3">
