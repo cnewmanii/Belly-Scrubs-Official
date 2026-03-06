@@ -103,7 +103,7 @@ function HeroSection() {
   }, [currentIdx, hasPhotos, photos?.length, preloadImage]);
 
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center px-6 pt-24 pb-16" data-testid="section-hero">
+    <section className="relative h-[500px] md:h-[600px] lg:h-[70vh] lg:max-h-[750px] flex items-center justify-center px-6 pt-24 pb-16" data-testid="section-hero">
       {/* Background layer */}
       <div className="absolute inset-0 overflow-hidden">
         {hasPhotos ? (
@@ -117,7 +117,7 @@ function HeroSection() {
                 <img
                   src={photo.imageData}
                   alt={photo.caption || "Hero background"}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover object-top"
                 />
               </div>
             ))}
