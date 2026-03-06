@@ -33,8 +33,8 @@
 - Hero rotation photos are stored as base64 in the database (hero_photos table), uploaded via /admin
 - Current before/after photo pairs:
   - Poodle: `Before_Poodle.jpeg` / `After_Poodle.jpeg`
-  - Moodle: `Before_Moodle.JPEG` / `After_Moodle.JPEG`
-  - Golden Retriever: `Before_Retriever.jpeg` / `After_Retriever.JPEG`
+  - Moodle: `Before_Moodle.jpg` / `After_Moodle.jpg`
+  - Golden Retriever: `Before_Retriever.jpeg` / `After_Retriever.jpg`
   - Yorkie: `Before_Yorki.jpeg` / `After_Yorki.jpeg`
 
 ## Square Integration

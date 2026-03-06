@@ -36,10 +36,10 @@ import {
 // Before/After grooming photos
 import before1 from "@assets/Before_Poodle.jpeg";
 import after1 from "@assets/After_Poodle.jpeg";
-import before2 from "@assets/Before_Moodle.JPEG";
-import after2 from "@assets/After_Moodle.JPEG";
+import before2 from "@assets/Before_Moodle.jpg";
+import after2 from "@assets/After_Moodle.jpg";
 import before3 from "@assets/Before_Retriever.jpeg";
-import after3 from "@assets/After_Retriever.JPEG";
+import after3 from "@assets/After_Retriever.jpg";
 import before4 from "@assets/Before_Yorki.jpeg";
 import after4 from "@assets/After_Yorki.jpeg";
 
