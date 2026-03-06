@@ -34,18 +34,18 @@ import {
 } from "lucide-react";
 
 // Before/After grooming photos
-import before1 from "@assets/IMG_0237.jpeg";
-import after1 from "@assets/IMG_0243.jpeg";
-import before2 from "@assets/IMG_0503.jpeg";
-import after2 from "@assets/IMG_0507.jpeg";
-import before3 from "@assets/IMG_4217.jpeg";
-import after3 from "@assets/IMG_4220.heic.JPEG";
-import before4 from "@assets/IMG_8069.heic.JPEG";
-import after4 from "@assets/IMG_8074.heic.JPEG";
+import before1 from "@assets/Before_Poodle.jpeg";
+import after1 from "@assets/After_Poodle.jpeg";
+import before2 from "@assets/Before_Moodle.JPEG";
+import after2 from "@assets/After_Moodle.JPEG";
+import before3 from "@assets/Before_Retriever.jpeg";
+import after3 from "@assets/After_Retriever.JPEG";
+import before4 from "@assets/Before_Yorki.jpeg";
+import after4 from "@assets/After_Yorki.jpeg";
 
 const groomingPairs = [
-  { before: before1, after: after1, name: "Brown Poodle" },
-  { before: before2, after: after2, name: "Curly Pup" },
+  { before: before1, after: after1, name: "Poodle" },
+  { before: before2, after: after2, name: "Moodle" },
   { before: before3, after: after3, name: "Golden Retriever" },
   { before: before4, after: after4, name: "Yorkie" },
 ];

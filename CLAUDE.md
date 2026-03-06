@@ -25,11 +25,17 @@
 - I (the developer) may not have git CLI access — provide clear instructions for GitHub web UI as an alternative.
 
 ## Image/Asset Rules
-- Photo filenames are case-sensitive. `.JPEG` ≠ `.jpeg`. Always verify exact filenames in attached_assets/ before writing imports.
-- Use dots not underscores in HEIC filenames: `IMG_4220.heic.JPEG` not `IMG_4220_heic.JPEG`
-- When placeholder images are created, they MUST be replaced with real photos before going live. Always note this clearly.
+- Photo filenames are case-sensitive. `.JPEG` ≠ `.jpeg` ≠ `.JPG`. Always verify exact filenames in attached_assets/ before writing imports.
+- Before/after photos use descriptive names: `Before_Poodle.jpeg`, `After_Poodle.jpeg`, `Before_Moodle.JPEG`, etc.
+- Team profile photos use: `Ginger_Profile.JPG` (name + "_Profile" + extension)
+- Extensions must match exactly as uploaded — do NOT normalize case (e.g., keep `.JPEG` if that's the actual filename)
 - Before/after photos and team photos live in `attached_assets/`
 - Hero rotation photos are stored as base64 in the database (hero_photos table), uploaded via /admin
+- Current before/after photo pairs:
+  - Poodle: `Before_Poodle.jpeg` / `After_Poodle.jpeg`
+  - Moodle: `Before_Moodle.JPEG` / `After_Moodle.JPEG`
+  - Golden Retriever: `Before_Retriever.jpeg` / `After_Retriever.JPEG`
+  - Yorkie: `Before_Yorki.jpeg` / `After_Yorki.jpeg`
 
 ## Square Integration
 - Square Bookings API requires: serviceVariationId, serviceVariationVersion, and a real teamMemberId (not "anyone")
