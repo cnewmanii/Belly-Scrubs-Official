@@ -100,6 +100,18 @@ export const insertPetCalendarMonthSchema = createInsertSchema(petCalendarMonths
   generated: true,
 });
 
+export const heroPhotos = pgTable("hero_photos", {
+  id: serial("id").primaryKey(),
+  imageData: text("image_data").notNull(),
+  caption: text("caption"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+export const insertHeroPhotoSchema = createInsertSchema(heroPhotos).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertBooking = z.infer<typeof insertBookingSchema>;
@@ -108,3 +120,5 @@ export type InsertPetCalendar = z.infer<typeof insertPetCalendarSchema>;
 export type PetCalendar = typeof petCalendars.$inferSelect;
 export type InsertPetCalendarMonth = z.infer<typeof insertPetCalendarMonthSchema>;
 export type PetCalendarMonth = typeof petCalendarMonths.$inferSelect;
+export type InsertHeroPhoto = z.infer<typeof insertHeroPhotoSchema>;
+export type HeroPhoto = typeof heroPhotos.$inferSelect;

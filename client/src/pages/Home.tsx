@@ -31,7 +31,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 const iconMap: Record<string, any> = { Scissors, Droplets, Wind, Sparkles, Waves };
 
@@ -44,13 +45,74 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.1 } },
 };
 
+interface HeroPhoto {
+  id: number;
+  imageData: string;
+  caption: string | null;
+}
+
 function HeroSection() {
+  const { data: photos } = useQuery<HeroPhoto[]>({ queryKey: ["/api/hero-photos"] });
+  const hasPhotos = photos && photos.length > 0;
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [preloaded, setPreloaded] = useState<Set<number>>(new Set());
+
+  // Preload next image
+  const preloadImage = useCallback(
+    (idx: number) => {
+      if (!hasPhotos || preloaded.has(idx)) return;
+      const img = new Image();
+      img.src = photos[idx].imageData;
+      setPreloaded((prev) => new Set(prev).add(idx));
+    },
+    [photos, hasPhotos, preloaded],
+  );
+
+  // Rotate every 5 seconds
+  useEffect(() => {
+    if (!hasPhotos || photos.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentIdx((c) => (c + 1) % photos.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [hasPhotos, photos?.length]);
+
+  // Preload the next image whenever currentIdx changes
+  useEffect(() => {
+    if (!hasPhotos) return;
+    const nextIdx = (currentIdx + 1) % photos.length;
+    preloadImage(nextIdx);
+  }, [currentIdx, hasPhotos, photos?.length, preloadImage]);
+
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center px-6 pt-24 pb-16" data-testid="section-hero">
+      {/* Background layer */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 right-10 w-64 h-64 rounded-full bg-[#7ab8d0]/20 dark:bg-[#7ab8d0]/5 blur-3xl" />
-        <div className="absolute bottom-20 left-10 w-80 h-80 rounded-full bg-[#7ab8d0]/15 dark:bg-[#7ab8d0]/5 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
+        {hasPhotos ? (
+          <>
+            {photos.map((photo, i) => (
+              <div
+                key={photo.id}
+                className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
+                style={{ opacity: i === currentIdx ? 1 : 0 }}
+              >
+                <img
+                  src={photo.imageData}
+                  alt={photo.caption || "Hero background"}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))}
+            {/* Dark overlay for text readability */}
+            <div className="absolute inset-0 bg-black/50" />
+          </>
+        ) : (
+          <>
+            <div className="absolute top-20 right-10 w-64 h-64 rounded-full bg-[#7ab8d0]/20 dark:bg-[#7ab8d0]/5 blur-3xl" />
+            <div className="absolute bottom-20 left-10 w-80 h-80 rounded-full bg-[#7ab8d0]/15 dark:bg-[#7ab8d0]/5 blur-3xl" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
+          </>
+        )}
       </div>
 
       <motion.div
@@ -68,16 +130,20 @@ function HeroSection() {
         <motion.h1
           variants={fadeUp}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight text-foreground mb-6"
+          className={`text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight mb-6 ${
+            hasPhotos ? "text-white" : "text-foreground"
+          }`}
         >
           Where Every Pup{" "}
-          <span className="text-primary">Leaves Happy</span>
+          <span className={hasPhotos ? "text-[#7ab8d0]" : "text-primary"}>Leaves Happy</span>
         </motion.h1>
 
         <motion.p
           variants={fadeUp}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-lg sm:text-xl text-muted-foreground max-w-xl mx-auto mb-10 leading-relaxed"
+          className={`text-lg sm:text-xl max-w-xl mx-auto mb-10 leading-relaxed ${
+            hasPhotos ? "text-white/80" : "text-muted-foreground"
+          }`}
         >
           Award-winning grooming, gentle handling, and 24/7 self-service wash stations.
           Proudly serving Hurricane, WV and the Putnam County area since 2010.
@@ -95,7 +161,9 @@ function HeroSection() {
             </Button>
           </Link>
           <Link href="/about">
-            <Button variant="outline" size="lg" className="gap-2 text-base px-8" data-testid="button-hero-services">
+            <Button variant="outline" size="lg" className={`gap-2 text-base px-8 ${
+              hasPhotos ? "border-white/30 text-white hover:bg-white/10" : ""
+            }`} data-testid="button-hero-services">
               View Services
               <ArrowRight className="w-4 h-4" />
             </Button>
@@ -105,7 +173,9 @@ function HeroSection() {
         <motion.div
           variants={fadeUp}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-12 flex items-center justify-center gap-6 text-sm text-muted-foreground"
+          className={`mt-12 flex items-center justify-center gap-6 text-sm ${
+            hasPhotos ? "text-white/70" : "text-muted-foreground"
+          }`}
         >
           <div className="flex items-center gap-1.5">
             <div className="flex">
@@ -113,9 +183,9 @@ function HeroSection() {
                 <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
               ))}
             </div>
-            <span className="font-medium text-foreground">5.0</span>
+            <span className={`font-medium ${hasPhotos ? "text-white" : "text-foreground"}`}>5.0</span>
           </div>
-          <div className="w-px h-4 bg-border" />
+          <div className={`w-px h-4 ${hasPhotos ? "bg-white/30" : "bg-border"}`} />
           <span>500+ happy pups</span>
         </motion.div>
       </motion.div>

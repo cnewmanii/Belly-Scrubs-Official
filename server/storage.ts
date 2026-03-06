@@ -4,7 +4,8 @@ import {
   type Booking, type InsertBooking,
   type PetCalendar, type InsertPetCalendar,
   type PetCalendarMonth,
-  bookings, petCalendars, petCalendarMonths,
+  type HeroPhoto,
+  bookings, petCalendars, petCalendarMonths, heroPhotos,
 } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -35,6 +36,10 @@ export interface IStorage {
   createPetCalendarMonth(calendarId: number, month: number, year: number, holidayName: string): Promise<PetCalendarMonth>;
   updatePetCalendarMonthImage(id: number, imageUrl: string): Promise<void>;
   getGeneratedMonthCount(calendarId: number): Promise<number>;
+
+  getHeroPhotos(): Promise<HeroPhoto[]>;
+  createHeroPhoto(imageData: string, caption?: string): Promise<HeroPhoto>;
+  deleteHeroPhoto(id: number): Promise<void>;
 }
 
 class DatabaseStorage implements IStorage {
@@ -177,6 +182,20 @@ class DatabaseStorage implements IStorage {
       sql`SELECT COUNT(*) as count FROM pet_calendar_months WHERE calendar_id = ${calendarId} AND generated = 1`
     );
     return parseInt((result.rows[0] as any).count, 10);
+  }
+  // --- Hero Photos ---
+
+  async getHeroPhotos(): Promise<HeroPhoto[]> {
+    return db.select().from(heroPhotos).orderBy(heroPhotos.createdAt);
+  }
+
+  async createHeroPhoto(imageData: string, caption?: string): Promise<HeroPhoto> {
+    const [photo] = await db.insert(heroPhotos).values({ imageData, caption: caption ?? null }).returning();
+    return photo;
+  }
+
+  async deleteHeroPhoto(id: number): Promise<void> {
+    await db.delete(heroPhotos).where(eq(heroPhotos.id, id));
   }
 }
 
