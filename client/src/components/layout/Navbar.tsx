@@ -37,7 +37,7 @@ export function Navbar() {
       }`}
     >
       <nav
-        className={`mx-auto max-w-6xl flex items-center justify-between gap-2 transition-all duration-300 rounded-2xl px-4 md:px-6 py-3 ${
+        className={`mx-auto max-w-6xl w-full flex items-center justify-between gap-2 transition-all duration-300 rounded-2xl px-4 md:px-6 py-3 ${
           scrolled
             ? "bg-background/80 backdrop-blur-xl border border-border/50 shadow-lg"
             : "bg-transparent"
@@ -45,20 +45,20 @@ export function Navbar() {
         data-testid="navbar"
       >
         <Link href="/" data-testid="link-home-logo">
-          <div className="flex items-center gap-2.5 cursor-pointer">
+          <div className="flex items-center gap-2 cursor-pointer shrink-0">
             <img src={logoImg} alt={businessInfo.name} className="w-10 h-10 rounded-xl object-cover" />
-            <span className="font-serif font-bold text-lg tracking-tight text-foreground hidden sm:block">
+            <span className="font-serif font-bold text-lg tracking-tight text-foreground hidden sm:block lg:text-lg md:text-base">
               {businessInfo.name}
             </span>
           </div>
         </Link>
 
-        <div className="hidden md:flex items-center gap-1" role="navigation" aria-label="Main navigation">
+        <div className="hidden md:flex items-center gap-0.5 lg:gap-1" role="navigation" aria-label="Main navigation">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`px-2 lg:px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 location === link.href
                   ? "text-primary bg-primary/10"
                   : "text-foreground/70"
@@ -71,7 +71,7 @@ export function Navbar() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 lg:gap-2 shrink-0">
           <a
             href={`tel:${businessInfo.phone}`}
             className="hidden lg:flex"
@@ -95,9 +95,10 @@ export function Navbar() {
           </a>
 
           <Link href="/book">
-            <Button size="sm" className="hidden sm:flex gap-1.5" data-testid="button-book-now-nav">
+            <Button size="sm" className="hidden md:flex gap-1.5" data-testid="button-book-now-nav">
               <Calendar className="w-3.5 h-3.5" />
-              Book Now
+              <span className="hidden lg:inline">Book Now</span>
+              <span className="lg:hidden">Book</span>
             </Button>
           </Link>
 
