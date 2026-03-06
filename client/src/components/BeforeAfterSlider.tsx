@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 interface BeforeAfterSliderProps {
   beforeSrc: string;
@@ -11,24 +11,29 @@ interface BeforeAfterSliderProps {
 
 export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeAlt, afterAlt, beforePosition = "center center", afterPosition = "center center" }: BeforeAfterSliderProps) {
   const [showAfter, setShowAfter] = useState(false);
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [isTouch, setIsTouch] = useState(false);
+  const isTouchRef = useRef(false);
 
   const handleTouchStart = useCallback(() => {
-    setIsTouchDevice(true);
-    setShowAfter(prev => !prev);
+    // Only set the flag — do NOT toggle here. onClick will handle it.
+    if (!isTouchRef.current) {
+      isTouchRef.current = true;
+      setIsTouch(true);
+    }
   }, []);
 
   const handleMouseEnter = useCallback(() => {
-    if (!isTouchDevice) setShowAfter(true);
-  }, [isTouchDevice]);
+    if (!isTouchRef.current) setShowAfter(true);
+  }, []);
 
   const handleMouseLeave = useCallback(() => {
-    if (!isTouchDevice) setShowAfter(false);
-  }, [isTouchDevice]);
+    if (!isTouchRef.current) setShowAfter(false);
+  }, []);
 
   const handleClick = useCallback(() => {
-    if (isTouchDevice) setShowAfter(prev => !prev);
-  }, [isTouchDevice]);
+    // On touch devices, toggle on tap. On desktop, mouse handlers cover it.
+    if (isTouchRef.current) setShowAfter(prev => !prev);
+  }, []);
 
   return (
     <div
@@ -62,6 +67,11 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeAlt, afterAlt, be
         className={`absolute top-3 left-3 text-white text-xs font-semibold px-2.5 py-1 rounded-full z-10 transition-all duration-300 ${showAfter ? "bg-primary/90" : "bg-black/60"}`}
       >
         {showAfter ? "After" : "Before"}
+      </span>
+
+      {/* Hint */}
+      <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-white/70 text-xs z-10 pointer-events-none">
+        {showAfter ? "Tap to go back" : (isTouch ? "Tap to reveal" : "Hover to reveal")}
       </span>
     </div>
   );
